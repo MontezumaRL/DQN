@@ -14,6 +14,41 @@ from replay_buffer import ReplayBuffer
 from src.environment import MontezumaEnvironment
 from utils import preprocess_frame
 
+def evaluate_model(model_path):
+    # Création de l'environnement
+    env = MontezumaEnvironment(render_mode="human")
+
+    # Détection du device
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # Création du réseau avec la même architecture
+    policy_net = DQN((4, 84, 84), env.n_actions).to(device)
+
+    # Chargement du modèle sauvegardé
+    checkpoint = torch.load(model_path)
+    policy_net.load_state_dict(checkpoint['policy_net_state_dict'])
+    policy_net.eval()  # Passage en mode évaluation
+
+    # Boucle d'évaluation
+    for episode in range(5):  # Par exemple, 5 épisodes d'évaluation
+        state = env.reset()
+        episode_reward = 0
+        done = False
+
+        while not done:
+            # Sélection de l'action de façon déterministe
+            with torch.no_grad():
+                state_tensor = torch.FloatTensor(state).unsqueeze(0).to(device)
+                action = policy_net(state_tensor).max(1)[1].item()
+
+            # Exécution de l'action
+            state, reward, done, info = env.step(action)
+            episode_reward += reward
+
+        print(f"Episode {episode}, Total Reward: {episode_reward}")
+
+    env.close()
+
 def train_montezuma():
     # Création de l'environnement
     env = MontezumaEnvironment(render_mode="human" if RENDER else None)
