@@ -15,7 +15,6 @@ class MontezumaEnvironment:
         self.action_space = self.env.action_space
         self.n_actions = self.env.action_space.n
         self.lives = 0  # Pour suivre le nombre de vies
-        self.grid_size = 8
 
     def reset(self):
         state = self.env.reset()[0]
@@ -40,6 +39,14 @@ class MontezumaEnvironment:
 
         # Vérifier si une vie a été perdue
         current_lives = info.get('lives', 0)
+
+        # Exemple de log info:
+        #{'lives': 6, 'episode_frame_number': 8, 'frame_number': 1040}
+        #{'lives': 6, 'episode_frame_number': 12, 'frame_number': 1044}
+        #{'lives': 6, 'episode_frame_number': 16, 'frame_number': 1048}
+        #{'lives': 6, 'episode_frame_number': 20, 'frame_number': 1052}
+        #{'lives': 6, 'episode_frame_number': 24, 'frame_number': 1056}
+
         life_lost = current_lives < self.lives
         self.lives = current_lives
 
@@ -63,35 +70,6 @@ class MontezumaEnvironment:
         plt.savefig(save_path)
         plt.close(fig)  # Ferme la figure pour libérer la mémoire
         print(f"Frame stack sauvegardée dans {save_path}")
-
-    def _get_agent_position(self, state):
-        """
-        Extrait une position approximative de l'agent à partir de l'état
-        Cette implémentation est simplifiée et utilise une grille discrète
-        """
-        # Utiliser la dernière frame du stack
-        if len(self.frame_stack) > 0:
-            frame = self.frame_stack[-1]
-
-            # Discrétiser l'espace en une grille
-            h, w = frame.shape
-            grid_h, grid_w = h // self.grid_size, w // self.grid_size
-
-            # Calculer l'intensité moyenne dans chaque cellule
-            intensity_grid = np.zeros((grid_h, grid_w))
-            for i in range(grid_h):
-                for j in range(grid_w):
-                    cell = frame[i * self.grid_size:(i + 1) * self.grid_size,
-                           j * self.grid_size:(j + 1) * self.grid_size]
-                    intensity_grid[i, j] = np.mean(cell)
-
-            # Trouver la cellule avec la plus grande différence d'intensité
-            # (approximation grossière de la position de l'agent)
-            flat_idx = np.argmax(intensity_grid)
-            pos_y, pos_x = np.unravel_index(flat_idx, intensity_grid.shape)
-
-            return (pos_x, pos_y)
-        return (0, 0)  # Position par défaut
 
     def close(self):
         self.env.close()
