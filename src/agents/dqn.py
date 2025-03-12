@@ -30,6 +30,13 @@ class DQNAgent:
 
         # Réseau de nouveauté pour l'exploration intrinsèque
         self.novelty_net = NoveltyNetwork(input_shape).to(device)
+        # Initialiser avec des poids plus diversifiés
+        for layer in self.novelty_net.modules():
+            if isinstance(layer, nn.Conv2d) or isinstance(layer, nn.Linear):
+                nn.init.xavier_uniform_(layer.weight, gain=1.5)
+                if layer.bias is not None:
+                    nn.init.constant_(layer.bias, 0)
+
         self.novelty_optimizer = optim.Adam(self.novelty_net.parameters(), lr=config.NOVELTY_LR)
 
         # Initialisation de l'optimiseur
@@ -64,26 +71,38 @@ class DQNAgent:
             state_tensor = torch.FloatTensor(state).unsqueeze(0).to(self.device)
             embedding = self.novelty_net(state_tensor).cpu().numpy()[0]
 
+        # Stocker l'état pour l'entraînement du réseau de nouveauté
+        self.novelty_buffer.append(state)
+
+        # Si le buffer est vide, ajouter l'embedding et retourner une récompense de base
         if len(self.embedding_buffer) == 0:
             self.embedding_buffer.append(embedding)
             return self.intrinsic_reward_scale  # Récompense maximale pour le premier état
 
-        # Calculer la distance minimale aux embeddings précédents
+        # Calculer la distance aux embeddings précédents (utiliser les k plus proches)
         distances = [np.linalg.norm(embedding - e) for e in self.embedding_buffer]
-        min_distance = min(distances)
+
+        # Trier les distances et prendre la moyenne des k plus proches
+        k = min(10, len(distances))
+        nearest_distances = sorted(distances)[:k]
+        avg_distance = sum(nearest_distances) / k
+
+        # Normaliser la distance pour obtenir une récompense plus stable
+        # Utiliser une fonction sigmoïde pour borner la récompense
+        normalized_reward = 2.0 / (1.0 + np.exp(-5.0 * avg_distance)) - 1.0
+        intrinsic_reward = normalized_reward * self.intrinsic_reward_scale
+
+        # S'assurer que la récompense est au moins un petit epsilon positif
+        intrinsic_reward = max(intrinsic_reward, 0.001)
 
         # Ajouter l'embedding au buffer
         self.embedding_buffer.append(embedding)
-
-        # Stocker l'état pour l'entraînement du réseau de nouveauté
-        self.novelty_buffer.append(state)
 
         # Entraîner le réseau de nouveauté périodiquement
         if len(self.novelty_buffer) >= 64 and self.total_steps % self.novelty_update_freq == 0:
             self._train_novelty_network()
 
-        # La récompense intrinsèque est proportionnelle à la distance minimale
-        return min_distance * self.intrinsic_reward_scale
+        return intrinsic_reward
 
     def _train_novelty_network(self):
         """Entraîne le réseau de nouveauté pour mieux distinguer les états"""
@@ -100,19 +119,28 @@ class DQNAgent:
         # Calculer les embeddings
         embeddings = self.novelty_net(states_tensor)
 
+        # Normaliser les embeddings
+        embeddings = F.normalize(embeddings, p=2, dim=1)
+
         # Calculer la matrice de similarité cosinus
-        similarity = F.cosine_similarity(embeddings.unsqueeze(1), embeddings.unsqueeze(0), dim=2)
+        similarity = torch.matmul(embeddings, embeddings.t())
 
-        # Créer les labels: 1 pour la diagonale (même état), 0 ailleurs
-        labels = torch.eye(64).to(self.device)
+        # Masque pour exclure la diagonale
+        mask = torch.eye(similarity.size(0), device=similarity.device)
 
-        # Calculer la perte (contrastive loss)
-        loss = F.binary_cross_entropy_with_logits(similarity, labels)
+        # Perte contrastive: rapprocher les états similaires, éloigner les états différents
+        positive_pairs = similarity * mask
+        negative_pairs = similarity * (1 - mask)
+
+        # Maximiser la similarité pour les paires positives, minimiser pour les négatives
+        loss = -torch.mean(positive_pairs) + torch.mean(negative_pairs)
 
         # Optimisation
         self.novelty_optimizer.zero_grad()
         loss.backward()
         self.novelty_optimizer.step()
+
+        return loss.item()
 
     def select_action(self, state):
         """Sélectionne une action selon la politique epsilon-greedy"""
@@ -126,6 +154,7 @@ class DQNAgent:
     def store_transition(self, state, action, reward, next_state, done):
         """Stocke une transition avec récompense intrinsèque"""
         intrinsic_reward = self.compute_intrinsic_reward(state)
+
         total_reward = reward + intrinsic_reward
 
         self.memory.push(state, action, total_reward, next_state, done)

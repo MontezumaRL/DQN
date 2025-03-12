@@ -22,7 +22,7 @@ class Config:
     SAVE_DIR = "output"
 
     # Paramètres pour l'exploration intrinsèque
-    INTRINSIC_REWARD_SCALE = 0.01
+    INTRINSIC_REWARD_SCALE = 0.1
     EMBEDDING_BUFFER_SIZE = 10000
     NOVELTY_LR = 0.0001
 

@@ -112,3 +112,11 @@ class NoveltyNetwork(nn.Module):
     def forward(self, x):
         conv_out = self.conv(x).view(x.size()[0], -1)
         return self.fc(conv_out)
+
+    def reset_parameters(self):
+        """Initialise les poids avec une variance plus élevée pour encourager la diversité"""
+        for layer in self.modules():
+            if isinstance(layer, nn.Conv2d) or isinstance(layer, nn.Linear):
+                nn.init.xavier_uniform_(layer.weight, gain=1.5)
+                if layer.bias is not None:
+                    nn.init.constant_(layer.bias, 0)

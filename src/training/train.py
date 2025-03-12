@@ -42,6 +42,7 @@ def train_montezuma():
         episode_intrinsic_reward = 0
         episode_start_time = time.time()
         episode_loss = []
+        episode_steps = 0
 
         # Boucle d'un épisode
         while True:
@@ -58,6 +59,7 @@ def train_montezuma():
             # Exécution de l'action
             next_state, reward, done, info = env.step(action)
             episode_reward += reward
+            episode_steps += 1
 
             # Stockage de l'expérience dans le buffer avec récompense intrinsèque
             intrinsic_reward = agent.store_transition(state, action, reward, next_state, done)
@@ -99,7 +101,7 @@ def train_montezuma():
               f"Epsilon: {agent.epsilon:.4f}, "
               f"Loss: {avg_loss:.4f}, "
               f"Duration: {episode_duration:.2f}s, "
-              f"Steps: {agent.total_steps}")
+              f"Steps: {episode_steps}")
 
         # Sauvegarde périodique du modèle et visualisation
         if episode % Config.SAVE_INTERVAL == 0:
