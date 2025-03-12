@@ -45,6 +45,7 @@ class MontezumaEnvironment:
             reward -= 10.0
             done = True
 
+
         return np.array(self.frame_stack), reward, done, info
 
     def get_state_tensor(self, device):

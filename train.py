@@ -167,7 +167,7 @@ def train_montezuma():
                 'epsilon': epsilon,
                 'total_steps': total_steps,
                 'episode_rewards': episode_rewards,
-            }, f"{save_dir}/montezuma_dqn_ep{episode}.pth")
+            }, f"{save_dir}/montezuma_epsilonr_dqn_ep{episode}.pth")
             print(f"Model saved at episode {episode}")
     
     # Fermeture de l'environnement
