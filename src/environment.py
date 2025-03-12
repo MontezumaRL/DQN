@@ -17,8 +17,19 @@ class MontezumaEnvironment:
         self.lives = 0  # Pour suivre le nombre de vies
         self.grid_size = 8
 
-    def reset(self):
-        state = self.env.reset()[0]
+    def reset(self, seed=None, options=None):
+        """
+        Réinitialise l'environnement et retourne l'état initial.
+
+        Args:
+            seed (int, optional): Graine pour la génération aléatoire
+            options (dict, optional): Options supplémentaires pour la réinitialisation
+
+        Returns:
+            numpy.ndarray: État initial (stack de frames)
+        """
+        # Passer le seed à l'environnement sous-jacent
+        state = self.env.reset(seed=seed, options=options)[0]
         state = preprocess_frame(state)
 
         # Initialiser le stack de frames
