@@ -27,6 +27,7 @@ def train_montezuma():
         state = env.reset()
         episode_reward = 0
         episode_start_time = time.time()
+        nb_steps = 0
 
         # Boucle d'un épisode
         while True:
@@ -36,6 +37,7 @@ def train_montezuma():
             # Exécution de l'action
             next_state, reward, done, info = env.step(action)
             episode_reward += reward
+            nb_steps += 1
 
             # Stockage de l'expérience dans le buffer
             agent.store_transition(state, action, reward, next_state, done)
@@ -66,7 +68,7 @@ def train_montezuma():
         # Affichage des statistiques
         print(f"Episode {episode}, Reward: {episode_reward}, "
               f"Epsilon: {agent.epsilon:.2f}, Duration: {episode_duration:.2f}s, "
-              f"Steps: {agent.total_steps}")
+              f"Steps: {nb_steps}")
 
         # Sauvegarde périodique du modèle
         if episode % Config.SAVE_INTERVAL == 0:
