@@ -1,8 +1,22 @@
 # fichier dqn/src/utils.py
-import cv2
+import numpy as np
+
+from PIL import Image
 
 def preprocess_frame(frame):
-    # Convertir en gris et redimensionner
-    frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
-    frame = cv2.resize(frame, (84, 84))
-    return frame / 255.0
+    # Convertir en PIL Image
+    img = Image.fromarray(frame)
+    # Convertir en niveaux de gris
+    img = img.convert('L')
+    # Redimensionner
+    img = img.resize((42, 42), Image.Resampling.BILINEAR)
+    # Convertir en numpy array
+    frame = np.array(img)
+
+    # Normaliser et convertir en 3-bit
+    frame = frame / 255.0
+    frame = frame * 7
+    frame = np.round(frame)
+    frame = frame / 7
+
+    return frame
