@@ -1,5 +1,4 @@
-# src/environment.py
-
+# fichier dqn/src/environment.py
 import gymnasium
 from collections import deque
 import numpy as np
@@ -17,14 +16,6 @@ class MontezumaEnvironment:
         self.n_actions = self.env.action_space.n
         self.lives = 0  # Pour suivre le nombre de vies
         self.grid_size = 8
-
-        # Pour le suivi de la position
-        self.last_position = None
-        self.visited_positions = set()
-
-        # Pour les récompenses de curiosité
-        self.room_detection_grid = 10  # Grille plus fine pour détecter les salles
-        self.visited_rooms = set()
 
     def reset(self, seed=None, options=None):
         """
@@ -49,13 +40,6 @@ class MontezumaEnvironment:
         _, _, _, _, info = self.env.step(0)  # Action NOOP pour obtenir info
         self.lives = info.get('lives', 0)
 
-        # Réinitialiser le suivi de position
-        self.last_position = self._get_agent_position(self.frame_stack)
-        self.visited_positions = {self.last_position}
-
-        # Réinitialiser le suivi des salles
-        self.visited_rooms = {self._get_room_id(self.frame_stack)}
-
         return np.array(self.frame_stack)
 
     def step(self, action):
@@ -73,23 +57,6 @@ class MontezumaEnvironment:
         if life_lost:
             reward -= 10.0
             done = True
-
-        # Ajouter des récompenses de curiosité
-        current_position = self._get_agent_position(self.frame_stack)
-        current_room = self._get_room_id(self.frame_stack)
-
-        # Récompense pour visiter une nouvelle position
-        if current_position not in self.visited_positions:
-            self.visited_positions.add(current_position)
-            reward += 0.1  # Petite récompense pour l'exploration locale
-
-        # Récompense pour découvrir une nouvelle salle
-        if current_room not in self.visited_rooms:
-            self.visited_rooms.add(current_room)
-            reward += 1.0  # Récompense plus importante pour découvrir une nouvelle salle
-
-        # Mettre à jour la dernière position
-        self.last_position = current_position
 
         return np.array(self.frame_stack), reward, done, info
 
@@ -137,62 +104,5 @@ class MontezumaEnvironment:
             return (pos_x, pos_y)
         return (0, 0)  # Position par défaut
 
-    def _get_room_id(self, state):
-        """
-        Identifie la salle actuelle en utilisant une signature basée sur les pixels
-        Cette méthode est une approximation et pourrait être améliorée
-        """
-        # Utiliser la dernière frame du stack
-        if len(self.frame_stack) > 0:
-            frame = self.frame_stack[-1]
-
-            # Créer une signature de la salle en utilisant une grille plus grossière
-            h, w = frame.shape
-            grid_h, grid_w = h // self.room_detection_grid, w // self.room_detection_grid
-
-            # Calculer l'intensité moyenne dans chaque cellule
-            room_signature = []
-            for i in range(grid_h):
-                for j in range(grid_w):
-                    cell = frame[i * self.room_detection_grid:(i + 1) * self.room_detection_grid,
-                           j * self.room_detection_grid:(j + 1) * self.room_detection_grid]
-                    avg_intensity = np.mean(cell)
-                    # Discrétiser l'intensité pour réduire la sensibilité aux petits changements
-                    room_signature.append(int(avg_intensity * 10))
-
-            # Convertir la signature en un identifiant unique
-            return tuple(room_signature)
-        return (0,)  # ID par défaut
-
     def close(self):
         self.env.close()
-
-
-class FrameSkipWrapper:
-    """Wrapper pour répéter la même action plusieurs fois"""
-
-    def __init__(self, env, skip=4):
-        self.env = env
-        self.skip = skip
-
-    def reset(self, **kwargs):
-        return self.env.reset(**kwargs)
-
-    def step(self, action):
-        total_reward = 0.0
-        done = False
-        info = {}
-
-        for _ in range(self.skip):
-            state, reward, done, info = self.env.step(action)
-            total_reward += reward
-            if done:
-                break
-
-        return state, total_reward, done, info
-
-    def close(self):
-        self.env.close()
-
-    def __getattr__(self, name):
-        return getattr(self.env, name)
