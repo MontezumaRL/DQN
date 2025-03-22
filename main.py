@@ -2,7 +2,7 @@
 from src.training.train import evaluate_model, train_montezuma
 
 if __name__ == "__main__":
-    checkpoint_path = "output/montezuma_dqn_ep12500.pth"
+    checkpoint_path = "output/montezuma_dqn_ep10000_check2.pth"
     # x=105, y=148 En bas du niveau
     # (39, 148) Après la tete de mort
     # (21, 192) Devant la clé en haut de l'echelle
