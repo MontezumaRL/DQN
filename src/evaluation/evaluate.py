@@ -6,17 +6,17 @@ import time
 from collections import defaultdict
 import gymnasium as gym
 from ..environment import MontezumaEnvironment
-from ..agents.dqn import DQNAgent
-from ..config import Config
-
+from ..agents.ddqn import DuelingDQNAgent  # Changé pour DuelingDQNAgent
+from ..config_ddqn import DuelingDQNConfig  # Changé pour DuelingDQNConfig
 
 def evaluate_model(model_path, num_episodes=5, start_x=21, start_y=192):
     """
-    Évalue un modèle DQN sauvegardé sur plusieurs épisodes
+    Évalue un modèle Dueling DQN sauvegardé sur plusieurs épisodes
 
     Args:
         model_path: Chemin vers le fichier du modèle sauvegardé
         num_episodes: Nombre d'épisodes d'évaluation
+        start_x, start_y: Position de départ de l'agent
 
     Returns:
         dict: Statistiques d'évaluation
@@ -29,18 +29,23 @@ def evaluate_model(model_path, num_episodes=5, start_x=21, start_y=192):
     model_name = os.path.basename(model_path).split('.')[0]
 
     # Configuration de l'environnement
-    env = MontezumaEnvironment(render_mode="human" if Config.RENDER else None)
+    env = MontezumaEnvironment(render_mode="human" if DuelingDQNConfig.RENDER else None)
 
     # Détection du device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
     # Initialisation de l'agent
-    agent = DQNAgent((4, 42, 42), env.n_actions, device, Config)
+    agent = DuelingDQNAgent((4, 42, 42), env.n_actions, device, DuelingDQNConfig)
 
     # Chargement du checkpoint
-    model = torch.load(model_path)
-    agent.policy_net.load_state_dict(model['policy_net_state_dict'])
+    try:
+        checkpoint = torch.load(model_path, map_location=device)
+        agent.policy_net.load_state_dict(checkpoint['policy_net_state_dict'])
+        print("Modèle chargé avec succès")
+    except Exception as e:
+        print(f"Erreur lors du chargement du modèle: {e}")
+        return None
 
     # Passage en mode évaluation
     agent.policy_net.eval()
@@ -64,10 +69,8 @@ def evaluate_model(model_path, num_episodes=5, start_x=21, start_y=192):
         visited_positions = set()
 
         while not done:
-            # Sélection de l'action de façon déterministe (epsilon = 0)
-            with torch.no_grad():
-                state_tensor = torch.FloatTensor(state).unsqueeze(0).to(device)
-                action = agent.policy_net(state_tensor).max(1)[1].item()
+            # Sélection de l'action de façon déterministe
+            action = agent.select_action(state, training=False)
 
             # Exécution de l'action
             next_state, reward, done, info = env.step(action)
@@ -78,7 +81,7 @@ def evaluate_model(model_path, num_episodes=5, start_x=21, start_y=192):
             # Suivre les actions prises
             action_counts[action] += 1
 
-            # Limiter le nombre d'étapes pour éviter les épisodes trop longs
+            # Limiter le nombre d'étapes
             if steps > 10000:
                 print("Épisode trop long, arrêt forcé.")
                 done = True
@@ -99,7 +102,7 @@ def evaluate_model(model_path, num_episodes=5, start_x=21, start_y=192):
         print(f"Épisode {ep+1}/{num_episodes}, Récompense: {episode_reward:.2f}, "
               f"Pas: {steps}, Durée: {duration:.2f}s")
 
-    # Calculer les moyennes
+    # Calculer et afficher les statistiques
     avg_reward = np.mean(stats['rewards'])
     avg_steps = np.mean(stats['steps'])
 
@@ -107,7 +110,7 @@ def evaluate_model(model_path, num_episodes=5, start_x=21, start_y=192):
     print(f"Récompense moyenne: {avg_reward:.2f} ± {np.std(stats['rewards']):.2f}")
     print(f"Nombre de pas moyen: {avg_steps:.1f}")
 
-    # Visualiser les résultats
+    # Créer les visualisations
     plt.figure(figsize=(15, 10))
 
     # Graphique des récompenses
@@ -128,7 +131,7 @@ def evaluate_model(model_path, num_episodes=5, start_x=21, start_y=192):
     plt.ylabel('Pas')
     plt.legend()
 
-    # Graphique de la distribution des actions (moyenne sur tous les épisodes)
+    # Graphique de la distribution des actions
     plt.subplot(2, 2, 3)
     action_keys = [k for k in stats.keys() if k.startswith('action_')]
     if action_keys:

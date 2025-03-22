@@ -1,5 +1,4 @@
-class Config:
-    """Configuration pour l'entraînement de l'agent DQN"""
+class DQNConfig:
 
     # Paramètres d'apprentissage
     BATCH_SIZE = 32
@@ -8,6 +7,8 @@ class Config:
     EPSILON_END = 0.1
     EPSILON_DECAY = 0.9995
     LEARNING_RATE = 0.0001
+    WEIGHT_DECAY = 1e-5
+
 
     # Paramètres de mémoire
     MEMORY_SIZE = 100000

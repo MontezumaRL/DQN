@@ -78,12 +78,12 @@ class MontezumaEnvironment:
         if life_lost:
             reward -= 10.0
             done = True
-        x, y = self.get_agent_position()
+        #x, y = self.get_agent_position()
         
-        if x <= 39 and self.flag_candy:
-            reward += 50
-            self.flag_candy = False
-            print("candy")
+        #if x <= 39 and self.flag_candy:
+        #    reward += 50
+        #    self.flag_candy = False
+        #    print("candy")
         
         # Vérifier si l'épisode a atteint le nombre maximum de pas
         if self.steps_in_episode >= self.max_steps:

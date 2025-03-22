@@ -9,4 +9,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     print(f"Évaluation du modèle: {args.model}")
-    evaluate_model(args.model, args.episodes, start_x=105, start_y=148)
+    evaluate_model(args.model, args.episodes, start_x=39, start_y=148)

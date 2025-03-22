@@ -3,17 +3,19 @@ import time
 
 import torch
 from ..agents.dqn import DQNAgent
-from ..config import Config
+from ..config_dqn import DQNConfig
 from ..environment import MontezumaEnvironment
+from ..memory.replay_buffer import ReplayBuffer
 
 
 def train_montezuma(checkpoint_path=None, start_x=21, start_y=192):
-    env = MontezumaEnvironment(render_mode="human" if Config.RENDER else None)
+    env = MontezumaEnvironment(render_mode="human" if DQNConfig.RENDER else None)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
-    # Initialisation de l'agent
-    agent = DQNAgent((4, 42, 42), env.n_actions, device, Config)
+    # Initialisation de l'agent et du replay buffer
+    agent = DQNAgent((4, 42, 42), env.n_actions, device, DQNConfig)
+    replay_buffer = ReplayBuffer(DQNConfig.MEMORY_SIZE)  # Création du buffer externe
 
     # Chargement du modèle pré-entraîné si spécifié
     start_episode = 0
@@ -26,14 +28,12 @@ def train_montezuma(checkpoint_path=None, start_x=21, start_y=192):
 
         # Réinitialisation d'epsilon à 0.99
         agent.epsilon = 0.79
-        #agent.update_epsilon()
         print(f"Reset epsilon to {agent.epsilon}")
 
     # Boucle d'entraînement
-    for episode in range(start_episode, Config.NUM_EPISODES):
+    for episode in range(start_episode, DQNConfig.NUM_EPISODES):
         state = env.reset()
         env.set_agent_position(start_x, start_y)
-        #env.setup_position_human()
         episode_reward = 0
         episode_start_time = time.time()
         nb_steps = 0
@@ -44,10 +44,15 @@ def train_montezuma(checkpoint_path=None, start_x=21, start_y=192):
             episode_reward += reward
             nb_steps += 1
 
-            # Stockage de l'expérience dans le buffer
-            agent.store_transition(state, action, reward, next_state, done)
+            # Stockage de l'expérience dans le buffer externe
+            replay_buffer.push(state, action, reward, next_state, done)
+
+            # Apprentissage si le buffer contient assez d'expériences
+            if len(replay_buffer) >= DQNConfig.BATCH_SIZE:
+                experiences = replay_buffer.sample(DQNConfig.BATCH_SIZE)
+                agent.learn(experiences)
+
             state = next_state
-            agent.learn()
 
             if episode_start_time + 10 < time.time():
                 done = True
@@ -56,7 +61,7 @@ def train_montezuma(checkpoint_path=None, start_x=21, start_y=192):
                 break
 
         # Mise à jour du réseau cible
-        if episode % Config.TARGET_UPDATE == 0:
+        if episode % DQNConfig.TARGET_UPDATE == 0:
             agent.update_target_network()
 
         # Mise à jour d'epsilon
@@ -74,10 +79,9 @@ def train_montezuma(checkpoint_path=None, start_x=21, start_y=192):
               f"Steps: {nb_steps}")
 
         # Sauvegarde périodique du modèle
-        if episode % Config.SAVE_INTERVAL == 0:
-            os.makedirs(Config.SAVE_DIR, exist_ok=True)
-            # Sauvegarde avec le même format que celui utilisé dans evaluate_model
-            save_path = f"{Config.SAVE_DIR}/montezuma_dqn_ep_step{episode}.pth"
+        if episode % DQNConfig.SAVE_INTERVAL == 0:
+            os.makedirs(DQNConfig.SAVE_DIR, exist_ok=True)
+            save_path = f"{DQNConfig.SAVE_DIR}/montezuma_dqn_ep_step{episode}.pth"
             torch.save({
                 'policy_net_state_dict': agent.policy_net.state_dict(),
                 'episode': episode,

@@ -1,12 +1,10 @@
 import random
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import numpy as np
 
-from ..memory.replay_buffer import ReplayBuffer
-from ..models.networks import DQNNetwork
-
+from ..models.dqn_network import DQNNetwork
 
 class DQNAgent:
     """Agent d'apprentissage par renforcement utilisant DQN"""
@@ -15,56 +13,53 @@ class DQNAgent:
         self.device = device
         self.config = config
         self.n_actions = n_actions
-        self.epsilon = config.EPSILON_START
 
-        # Initialisation des réseaux
+        # Réseaux principal et cible
         self.policy_net = DQNNetwork(input_shape, n_actions).to(device)
         self.target_net = DQNNetwork(input_shape, n_actions).to(device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
 
-        # Initialisation de l'optimiseur
-        self.optimizer = optim.Adam(self.policy_net.parameters(), lr=config.LEARNING_RATE)
+        # Optimiseur avec gradient clipping
+        self.optimizer = torch.optim.Adam(
+            self.policy_net.parameters(),
+            lr=config.LEARNING_RATE,
+            weight_decay=config.WEIGHT_DECAY
+        )
 
-        # Initialisation du buffer de replay
-        self.memory = ReplayBuffer(config.MEMORY_SIZE)
+        # Paramètres d'exploration
+        self.epsilon = config.EPSILON_START
+        self.epsilon_end = config.EPSILON_END
+        self.epsilon_decay = config.EPSILON_DECAY
 
         # Compteur d'étapes
         self.total_steps = 0
 
-    def select_action(self, state):
-        """Sélectionne une action selon la politique epsilon-greedy"""
-        if random.random() > self.epsilon:
-            with torch.no_grad():
-                state_tensor = torch.FloatTensor(state).unsqueeze(0).to(self.device)
-                return self.policy_net(state_tensor).max(1)[1].item()
-        else:
-            return random.randint(0, self.n_actions - 1)
+    def select_action(self, state, training=True):
+        # Exploration pendant l'entraînement
+        if training and np.random.random() < self.epsilon:
+            return np.random.randint(self.n_actions)
 
-    def store_transition(self, state, action, reward, next_state, done):
-        """Stocke une transition dans la mémoire de replay"""
-        self.memory.push(state, action, reward, next_state, done)
-        self.total_steps += 1
+        # Exploitation
+        with torch.no_grad():
+            # Conversion et préparation du state
+            if not isinstance(state, np.ndarray):
+                state = np.array(state)
+
+            state_tensor = torch.FloatTensor(state).unsqueeze(0).to(self.device)
+
+            # Calcul des Q-values et sélection de la meilleure action
+            q_values = self.policy_net(state_tensor)
+            return q_values.max(1)[1].item()
 
     def update_epsilon(self):
-        """Met à jour la valeur d'epsilon"""
-        self.epsilon = max(self.config.EPSILON_END,
-                           self.epsilon * self.config.EPSILON_DECAY)
+        self.epsilon = max(
+            self.epsilon_end,
+            self.epsilon * self.epsilon_decay
+        )
 
-    def learn(self):
-        """Effectue une étape d'apprentissage"""
-        if len(self.memory) < self.config.BATCH_SIZE:
-            return
-
-        # Échantillonnage d'un batch d'expériences
-        states, actions, rewards, next_states, dones = self.memory.sample(self.config.BATCH_SIZE)
-
-        # Conversion en tensors
-        states = torch.FloatTensor(states).to(self.device)
-        actions = torch.LongTensor(actions).to(self.device)
-        rewards = torch.FloatTensor(rewards).to(self.device)
-        next_states = torch.FloatTensor(next_states).to(self.device)
-        dones = torch.FloatTensor(dones).to(self.device)
+    def learn(self, experiences):
+        states, actions, rewards, next_states, dones = experiences
 
         # Calcul des Q-values actuelles
         current_q_values = self.policy_net(states).gather(1, actions.unsqueeze(1)).squeeze(1)
@@ -87,7 +82,7 @@ class DQNAgent:
 
         return loss.item()
 
-    def update_target_network(self):
+    def update_target_network(self): #Hard update
         """Met à jour le réseau cible"""
         self.target_net.load_state_dict(self.policy_net.state_dict())
 
