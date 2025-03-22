@@ -16,7 +16,7 @@ class Config:
     TARGET_UPDATE = 10
     RENDER = True  # Mettre à True pour visualiser le jeu
     NUM_EPISODES = 10000
-    SAVE_INTERVAL = 100
+    SAVE_INTERVAL = 10
 
     # Chemin de sauvegarde
     SAVE_DIR = "./output"
