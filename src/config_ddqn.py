@@ -1,6 +1,6 @@
 class DuelingDQNConfig:
     # Paramètres d'apprentissage
-    RENDER = True
+    RENDER = False
     BATCH_SIZE = 32
     LEARNING_RATE = 0.00025
     GAMMA = 0.99
@@ -23,7 +23,7 @@ class DuelingDQNConfig:
     NUM_EPISODES = 10000
     MAX_STEPS = 1000
     LEARN_EVERY = 4
-    UPDATE_TARGET_EVERY = 1000
+    UPDATE_TARGET_EVERY = 50
 
     # Paramètres de sauvegarde
     SAVE_INTERVAL = 100

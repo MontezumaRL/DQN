@@ -1,49 +1,81 @@
-# fichier dqn/src/memory/replay_buffer.py:
 from collections import deque, namedtuple
 import random
 import numpy as np
 import torch
 
-# Définition de la structure pour stocker les expériences
 Experience = namedtuple('Experience', ('state', 'action', 'reward', 'next_state', 'done'))
 
 class ReplayBuffer:
-    """Mémoire de replay pour stocker les expériences de l'agent"""
-    
-    def __init__(self, capacity):
+    def __init__(self, capacity, device=None):
+        """
+        Initialise le buffer de replay
+        Args:
+            capacity: Taille maximale du buffer
+            device: Device pour les tenseurs (cuda ou cpu)
+        """
         self.memory = deque(maxlen=capacity)
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        
+        self.device = device if device is not None else torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     def push(self, state, action, reward, next_state, done):
-        """Ajoute une expérience à la mémoire"""
+        """
+        Ajoute une expérience au buffer
+        Convertit les données en numpy arrays avant stockage
+        """
+        # Conversion des tenseurs en numpy si nécessaire
+        if isinstance(state, torch.Tensor):
+            state = state.cpu().numpy()
+        if isinstance(next_state, torch.Tensor):
+            next_state = next_state.cpu().numpy()
+        if isinstance(action, torch.Tensor):
+            action = action.cpu().numpy()
+        if isinstance(reward, torch.Tensor):
+            reward = reward.cpu().numpy()
+        if isinstance(done, torch.Tensor):
+            done = done.cpu().numpy()
+
         # Conversion en numpy arrays si ce ne sont pas déjà des arrays
-        if not isinstance(state, np.ndarray):
-            state = np.array(state)
-        if not isinstance(next_state, np.ndarray):
-            next_state = np.array(next_state)
-            
+        state = np.array(state, dtype=np.float32)
+        next_state = np.array(next_state, dtype=np.float32)
+        action = np.array(action, dtype=np.int64)
+        reward = np.array(reward, dtype=np.float32)
+        done = np.array(done, dtype=np.float32)
+
         self.memory.append(Experience(state, action, reward, next_state, done))
-        
+
     def sample(self, batch_size):
-        """Échantillonne un batch d'expériences aléatoirement et retourne des tensors PyTorch"""
+        """
+        Échantillonne un batch d'expériences et les retourne sous forme de tenseurs
+        sur le device approprié
+        """
         experiences = random.sample(self.memory, batch_size)
-        
-        # Conversion en numpy arrays
-        states = np.array([exp.state for exp in experiences])
-        actions = np.array([exp.action for exp in experiences])
-        rewards = np.array([exp.reward for exp in experiences])
-        next_states = np.array([exp.next_state for exp in experiences])
-        dones = np.array([exp.done for exp in experiences])
-        
-        # Conversion en tensors PyTorch
-        states = torch.FloatTensor(states).to(self.device)
-        actions = torch.LongTensor(actions).to(self.device)
-        rewards = torch.FloatTensor(rewards).to(self.device)
-        next_states = torch.FloatTensor(next_states).to(self.device)
-        dones = torch.FloatTensor(dones).to(self.device)
-        
-        return states, actions, rewards, next_states, dones
-    
+
+        # Empilage des arrays numpy
+        states = np.stack([exp.state for exp in experiences])
+        actions = np.stack([exp.action for exp in experiences])
+        rewards = np.stack([exp.reward for exp in experiences])
+        next_states = np.stack([exp.next_state for exp in experiences])
+        dones = np.stack([exp.done for exp in experiences])
+
+        # Conversion en tenseurs PyTorch et déplacement vers le device approprié
+        states = torch.from_numpy(states).float().to(self.device)
+        actions = torch.from_numpy(actions).long().to(self.device)
+        rewards = torch.from_numpy(rewards).float().to(self.device)
+        next_states = torch.from_numpy(next_states).float().to(self.device)
+        dones = torch.from_numpy(dones).float().to(self.device)
+
+        return (states, actions, rewards, next_states, dones)
+
     def __len__(self):
-        """Retourne la taille actuelle du buffer"""
         return len(self.memory)
+
+    def clear(self):
+        """Vide le buffer"""
+        self.memory.clear()
+
+    def get_device(self):
+        """Retourne le device utilisé par le buffer"""
+        return self.device
+
+    def set_device(self, device):
+        """Change le device du buffer"""
+        self.device = device
