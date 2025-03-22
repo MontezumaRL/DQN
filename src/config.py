@@ -13,10 +13,10 @@ class Config:
     MEMORY_SIZE = 100000
 
     # Paramètres d'entraînement
-    TARGET_UPDATE = 10
+    TARGET_UPDATE = 50
     RENDER = True  # Mettre à True pour visualiser le jeu
     NUM_EPISODES = 10000
-    SAVE_INTERVAL = 10
+    SAVE_INTERVAL = 100
 
     # Chemin de sauvegarde
     SAVE_DIR = "./output"

@@ -1,97 +1,118 @@
-# fichier dqn/src/rewards.py
 import math
 
 class RewardSystem:
     def __init__(self):
-        # Paramètres de base des récompenses
-        self.time_penalty = -0.1
-        self.life_loss_penalty = -10.0
-        self.timeout_penalty = -10.0
-        self.skeleton_reward = 50.0
-        # Flag pour savoir si il a passé 1 fois le squelette
-        self.flag_skeleton = False
+        # Récompenses principales
+        self.key_reward = 100.0          # Récompense maximale pour atteindre la clé
+        self.skeleton_reward = 50.0      # Récompense pour passer le squelette
 
-        self.key_position = (21, 192)  # Position de la clé
+        # Récompenses d'exploration
+        self.leftward_reward = 5.0       # Récompense pour nouvelle position vers la gauche
+        self.distance_reward_factor = 1.0 # Facteur pour la distance à la clé
+        self.close_to_key_reward = 20.0  # Bonus quand très proche de la clé
+        self.close_to_key_threshold = 5   # Distance considérée comme proche de la clé
+
+        # Pénalités
+        self.life_loss_penalty = -25.0   # Pénalité pour perte de vie
+        self.timeout_penalty = -15.0     # Pénalité pour timeout
+
+        # États et positions
+        self.key_position = (21, 192)
+        self.visited_positions = set()
+        self.previous_position = None
         self.previous_distance = None
-        # self.distance_reward_factor = 0.1  # Facteur multiplicateur pour la récompense de distance
+        self.flag_skeleton = False
 
     def reset(self):
         """Réinitialise les états des récompenses"""
-        self.flag_skeleton = False
+        self.visited_positions.clear()
+        self.previous_position = None
         self.previous_distance = None
-
-    def calculate_time_penalty(self):
-        """Calcule la pénalité de temps"""
-        return self.time_penalty
-
-    def calculate_life_loss_penalty(self):
-        """Calcule la pénalité de perte de vie"""
-        return self.life_loss_penalty
-
-    def calculate_timeout_penalty(self):
-        """Calcule la pénalité de timeout"""
-        return self.timeout_penalty
-
-    def calculate_skeleton_reward(self, x, y):
-        """Calcule la récompense si il passe le squelette"""
-        # Si il passe le squelette alors qu'il ne l'avait pas encore passé
-        if x <= 39 and not self.flag_skeleton:
-            self.flag_skeleton = True
-            print("1er passage du squelette")
-            return self.skeleton_reward
-        return 0.0
+        self.flag_skeleton = False
 
     def calculate_distance_to_key(self, x, y):
         """Calcule la distance euclidienne entre l'agent et la clé"""
-        return math.sqrt((x - self.key_position[0]) ** 2 + (y - self.key_position[1]) ** 2)
+        return math.sqrt((x - self.key_position[0])**2 + (y - self.key_position[1])**2)
 
     def calculate_distance_reward(self, x, y):
         """Calcule la récompense basée sur la distance à la clé"""
         current_distance = self.calculate_distance_to_key(x, y)
-        # print(f"current_distance: {current_distance}")
-        # print(f"previous_distance: {self.previous_distance}")
 
-        # Bonus si très proche de la clé (par exemple distance < 5)
-        if current_distance < 5:
-            return 20.0  # Bonus important
+        # Bonus important si très proche de la clé
+        if current_distance < self.close_to_key_threshold:
+            return self.close_to_key_reward
 
-        # Si c'est la première fois qu'on calcule la distance
+        # Première mesure de distance
         if self.previous_distance is None:
             self.previous_distance = current_distance
             return 0.0
 
-        # Calculer la différence de distance
+        # Calculer la progression vers la clé
         distance_difference = self.previous_distance - current_distance
         self.previous_distance = current_distance
-        # print(f"distance_difference: {distance_difference}")
 
-        # Récompense positive si on se rapproche, négative si on s'éloigne
-        return distance_difference
+        # Récompense proportionnelle à la progression
+        return distance_difference * self.distance_reward_factor
+
+    def calculate_leftward_exploration_reward(self, x, y):
+        """Calcule la récompense pour l'exploration vers la gauche"""
+        if (x, y) not in self.visited_positions:
+            if self.previous_position is not None and x < self.previous_position[0]:
+                self.visited_positions.add((x, y))
+                self.previous_position = (x, y)
+                return self.leftward_reward
+
+        self.previous_position = (x, y)
+        return 0.0
+
+    def calculate_skeleton_reward(self, x, y):
+        """Calcule la récompense pour le passage du squelette"""
+        if x <= 39 and not self.flag_skeleton:
+            self.flag_skeleton = True
+            print("Premier passage du squelette !")
+            return self.skeleton_reward
+        return 0.0
 
     def calculate_total_reward(self, base_reward, x, y, life_lost, timeout):
-        """Calcule la récompense totale en combinant toutes les récompenses"""
+        """
+        Calcule la récompense totale avec une hiérarchie claire des récompenses
+        """
+        # Commencer avec la récompense de base du jeu
         total_reward = base_reward
-        # print(f"base_reward: {base_reward}")
 
-        # Ajouter la pénalité de temps
-        total_reward += self.calculate_time_penalty()
-        # print(f"time_penalty: {self.calculate_time_penalty()}")
+        # 1. Récompenses principales (objectifs majeurs)
+        skeleton_reward = self.calculate_skeleton_reward(x, y)
+        total_reward += skeleton_reward
 
-        # Ajouter la récompense du bonbon
-        total_reward += self.calculate_skeleton_reward(x, y)
-        # print(f"skeleton_reward: {self.calculate_skeleton_reward(x, y)}")
+        # 2. Récompenses de progression (distance à la clé)
+        distance_reward = self.calculate_distance_reward(x, y)
+        total_reward += distance_reward
 
-        # Ajouter la récompense de distance
-        total_reward += self.calculate_distance_reward(x, y)
+        # 3. Récompenses d'exploration
+        exploration_reward = self.calculate_leftward_exploration_reward(x, y)
+        total_reward += exploration_reward
 
-        # Ajouter la pénalité de perte de vie
+        # 4. Pénalités
         if life_lost:
-            total_reward += self.calculate_life_loss_penalty()
-            # print(f"life_loss_penalty: {self.calculate_life_loss_penalty()}")
-
-        # Ajouter la pénalité de timeout
+            total_reward += self.life_loss_penalty
         if timeout:
-            total_reward += self.calculate_timeout_penalty()
-            # print(f"timeout_penalty: {self.calculate_timeout_penalty()}")
+            total_reward += self.timeout_penalty
+
+        # Debug logging (à commenter en production)
+        # self._debug_rewards(base_reward, skeleton_reward, distance_reward,
+        #                   exploration_reward, life_lost, timeout)
 
         return total_reward
+
+    def _debug_rewards(self, base_reward, skeleton_reward, distance_reward,
+                      exploration_reward, life_lost, timeout):
+        """Affiche les détails des récompenses pour le debugging"""
+        print("\nDétail des récompenses:")
+        print(f"Base reward: {base_reward:>10.2f}")
+        print(f"Skeleton: {skeleton_reward:>12.2f}")
+        print(f"Distance: {distance_reward:>12.2f}")
+        print(f"Exploration: {exploration_reward:>9.2f}")
+        if life_lost:
+            print(f"Life loss: {self.life_loss_penalty:>11.2f}")
+        if timeout:
+            print(f"Timeout: {self.timeout_penalty:>12.2f}")

@@ -91,7 +91,7 @@ class MontezumaEnvironment:
             timeout=timeout
         )
 
-        if reward > 50:
+        if reward > 1000:
             done = True
 
         return np.array(self.frame_stack), reward, done, info
