@@ -19,7 +19,7 @@ def test_environment_action():
     env = environment.MontezumaEnvironment(render_mode="rgb_array")
     env.reset()
     print(env.get_agent_position())
-    
+
     env.step(14)
     env.step(3)
     env.step(3)
@@ -90,14 +90,14 @@ def test_environment_action():
     env.step(2)
     # (21, 192) Devant la clé en haut de l'echelle
 
-
-    #env.set_agent_position(105,148)
-    #env.step(4)
+    # env.set_agent_position(105,148)
+    # env.step(4)
     print(env.get_agent_position())
 
     env.display_frame_stack()
     print(env.lives)
     env.close()
+
 
 if __name__ == "__main__":
     test_environment_lives()

@@ -8,7 +8,6 @@ def preprocess_frame(frame):
     img = Image.fromarray(frame)
     # Convertir en niveaux de gris
     img = img.convert('L')
-    print(img.size)
     # Redimensionner
     img = img.resize((42, 42), Image.Resampling.BILINEAR)
     # Convertir en numpy array
