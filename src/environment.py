@@ -81,6 +81,8 @@ class MontezumaEnvironment:
 
         # Obtenir la position de l'agent
         x, y = self.get_agent_position()
+        if x == 21 and y == 192:
+            print("Clé trouvée !")
 
         # Calculer la récompense totale
         reward = self.reward_system.calculate_total_reward(

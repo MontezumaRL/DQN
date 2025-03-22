@@ -14,7 +14,7 @@ class Config:
 
     # Paramètres d'entraînement
     TARGET_UPDATE = 50
-    RENDER = True  # Mettre à True pour visualiser le jeu
+    RENDER = False  # Mettre à True pour visualiser le jeu
     NUM_EPISODES = 10000
     SAVE_INTERVAL = 100
 

@@ -14,7 +14,7 @@ class RewardSystem:
 
         # Pénalités
         self.life_loss_penalty = -25.0   # Pénalité pour perte de vie
-        self.timeout_penalty = -15.0     # Pénalité pour timeout
+        self.timeout_penalty = -30.0     # Pénalité pour timeout
 
         # États et positions
         self.key_position = (21, 192)
