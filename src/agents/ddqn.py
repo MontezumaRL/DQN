@@ -42,21 +42,17 @@ class DuelingDQNAgent:
 
     def select_action(self, state, training=True):
         """Sélectionne une action selon la politique epsilon-greedy"""
-        # Exploration pendant l'entraînement
         if training and np.random.random() < self.epsilon:
-            return np.random.randint(self.n_actions)
+            action = np.random.randint(self.n_actions)
+            return torch.tensor([action], dtype=torch.long)  # Retourne un tenseur 1D
 
-        # Exploitation
         with torch.no_grad():
-            # Conversion et préparation du state
             if not isinstance(state, torch.Tensor):
-                if not isinstance(state, np.ndarray):
-                    state = np.array(state)
                 state = torch.FloatTensor(state)
 
             state = state.unsqueeze(0).to(self.device)
             q_values = self.policy_net(state)
-            return q_values.max(1)[1].item()
+            return q_values.max(1)[1].cpu()  # Retourne un tenseur 1D sur CPU
 
     def update_epsilon(self):
         """Met à jour le taux d'exploration epsilon"""
@@ -67,6 +63,13 @@ class DuelingDQNAgent:
 
     def _compute_n_step_returns(self, reward, next_state, done):
         """Calcule les returns n-step"""
+        if not isinstance(reward, torch.Tensor):
+            reward = torch.tensor(reward, dtype=torch.float32)
+        if not isinstance(next_state, torch.Tensor):
+            next_state = torch.FloatTensor(next_state)
+        if not isinstance(done, torch.Tensor):
+            done = torch.tensor(done, dtype=torch.float32)
+
         self.n_step_buffer.append((reward, next_state, done))
 
         if len(self.n_step_buffer) < self.n_steps:
@@ -84,20 +87,18 @@ class DuelingDQNAgent:
         """Effectue une étape d'apprentissage"""
         states, actions, rewards, next_states, dones = experiences
 
-        # Conversion en tenseurs
-        states = torch.FloatTensor(np.array(states)).to(self.device)
-        actions = torch.LongTensor(np.array(actions)).to(self.device)
-        rewards = torch.FloatTensor(np.array(rewards)).to(self.device)
-        next_states = torch.FloatTensor(np.array(next_states)).to(self.device)
-        dones = torch.FloatTensor(np.array(dones)).to(self.device)
+        # S'assurer que les actions sont dans le bon format pour le gather
+        actions = actions.view(-1, 1)  # Reshape en (batch_size, 1)
+        rewards = rewards.view(-1, 1)  # Reshape en (batch_size, 1)
+        dones = dones.view(-1, 1)  # Reshape en (batch_size, 1)
 
         # Calcul des Q-values actuelles
-        current_q_values = self.policy_net(states).gather(1, actions.unsqueeze(1)).squeeze(1)
+        current_q_values = self.policy_net(states).gather(1, actions)
 
         # Double DQN: sélection des actions avec le réseau principal
         with torch.no_grad():
-            next_actions = self.policy_net(next_states).max(1)[1]
-            next_q_values = self.target_net(next_states).gather(1, next_actions.unsqueeze(1)).squeeze(1)
+            next_actions = self.policy_net(next_states).max(1)[1].unsqueeze(1)
+            next_q_values = self.target_net(next_states).gather(1, next_actions)
             target_q_values = rewards + (self.gamma ** self.n_steps) * next_q_values * (1 - dones)
 
         # Calcul de la perte Huber
@@ -123,7 +124,7 @@ class DuelingDQNAgent:
     def update_target_network(self):
         """Mise à jour douce du réseau cible"""
         tau = getattr(self.config, 'TAU', 1.0)  # Utilise TAU=1.0 par défaut (hard update)
-        
+
         for target_param, policy_param in zip(
             self.target_net.parameters(),
             self.policy_net.parameters()
@@ -136,7 +137,7 @@ class DuelingDQNAgent:
     def save(self, path, additional_info=None):
         """Sauvegarde du modèle avec des informations supplémentaires"""
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        
+
         save_dict = {
             'policy_net_state_dict': self.policy_net.state_dict(),
             'target_net_state_dict': self.target_net.state_dict(),
@@ -145,10 +146,10 @@ class DuelingDQNAgent:
             'total_steps': self.total_steps,
             'training_steps': self.training_steps
         }
-        
+
         if additional_info is not None:
             save_dict.update(additional_info)
-            
+
         torch.save(save_dict, path)
         print(f"Model saved to {path}")
 
@@ -157,7 +158,7 @@ class DuelingDQNAgent:
         if not os.path.exists(path):
             print(f"No checkpoint found at {path}")
             return None
-            
+
         checkpoint = torch.load(path, map_location=self.device)
         self.policy_net.load_state_dict(checkpoint['policy_net_state_dict'])
         self.target_net.load_state_dict(checkpoint['target_net_state_dict'])
@@ -165,6 +166,6 @@ class DuelingDQNAgent:
         self.epsilon = checkpoint['epsilon']
         self.total_steps = checkpoint['total_steps']
         self.training_steps = checkpoint['training_steps']
-        
+
         print(f"Model loaded from {path}")
         return checkpoint

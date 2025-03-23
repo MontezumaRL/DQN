@@ -3,7 +3,7 @@ from src.training.train_dqn import train_montezuma
 from src.training.train_ddqn import train_montezuma_dueling
 
 if __name__ == "__main__":
-   checkpoint_path = "output/ddqn/checkpoint_ep4500.pth"
+   checkpoint_path = "output/ddqn/checkpoint_ep4000_1.pth"
    # x=105, y=148 En bas du niveau
    # (39, 148) Après la tete de mort
    # (21, 192) Devant la clé en haut de l'echelle
@@ -18,7 +18,7 @@ if __name__ == "__main__":
    #)
 
    model = train_montezuma_dueling(
-      checkpoint_path=None,
+      checkpoint_path=checkpoint_path,
       start_x=new_start_x,
       start_y=new_start_y
    )

@@ -50,7 +50,6 @@ def train_montezuma_dueling(
             print(f"Error loading checkpoint: {e}")
 
     try:
-        # Boucle d'entraînement principale
         for episode in range(start_episode, DuelingDQNConfig.NUM_EPISODES):
             state = env.reset()
             env.set_agent_position(start_x, start_y)
@@ -64,7 +63,7 @@ def train_montezuma_dueling(
                 action = agent.select_action(state)
                 next_state, reward, done, info = env.step(action)
 
-                # Stockage dans le buffer
+                # Stockage direct dans le buffer
                 replay_buffer.push(state, action, reward, next_state, done)
 
                 state = next_state
@@ -113,16 +112,17 @@ def train_montezuma_dueling(
                     'running_reward': running_reward
                 })
 
-            # Affichage des statistiques
-            print(
-                f"Episode {episode}/{DuelingDQNConfig.NUM_EPISODES} | "
-                f"Reward: {episode_reward:.2f} | "
-                f"Running reward: {running_reward:.2f} | "
-                f"Epsilon: {agent.epsilon:.3f} | "
-                f"Loss: {mean_loss:.4f} | "
-                f"Duration: {episode_duration:.2f}s | "
-                f"Buffer: {len(replay_buffer)}/{DuelingDQNConfig.REPLAY_SIZE}"
-            )
+            # Affichage des statistiques tous les 500 épisodes
+            if episode % 100 == 0:
+                print(
+                    f"Episode {episode}/{DuelingDQNConfig.NUM_EPISODES} | "
+                    f"Reward: {episode_reward:.2f} | "
+                    f"Running reward: {running_reward:.2f} | "
+                    f"Epsilon: {agent.epsilon:.3f} | "
+                    f"Loss: {mean_loss:.4f} | "
+                    f"Duration: {episode_duration:.2f}s | "
+                    f"Buffer: {len(replay_buffer)}/{DuelingDQNConfig.REPLAY_SIZE}"
+                )
 
     except KeyboardInterrupt:
         print("\nTraining interrupted by user")

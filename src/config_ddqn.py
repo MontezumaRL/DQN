@@ -6,7 +6,7 @@ class DuelingDQNConfig:
     GAMMA = 0.99
     EPSILON_START = 1.0
     EPSILON_END = 0.01
-    EPSILON_DECAY = 0.9995
+    EPSILON_DECAY = 0.99995
 
     # Paramètres du buffer
     REPLAY_SIZE = 100000
