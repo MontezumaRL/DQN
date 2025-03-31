@@ -73,7 +73,10 @@ def evaluate_agent(model_path, num_episodes=10, render_mode='human', seed=None):
                 action = q_values.argmax(dim=1).item() # Choisir l'action avec la Q-value max
 
             # Exécuter l'action dans l'environnement
-            next_state, reward, done, info = env.step(action)
+            next_state, reward, terminated, truncated, info = env.step(action)
+            done = terminated or truncated # Calculer done
+            print(f"Action: {action}, Reward: {reward}")
+            
 
             # Mettre à jour l'état, la récompense et la longueur
             state = next_state

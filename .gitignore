@@ -1,3 +1,8 @@
+dqn_montezuma_model.pth
+optimizers_montezuma.pth 
+rnd_montezuma_model.pth
+normalizers_montezuma.pkl
+training_profile.prof
 *.png
 # Created by https://www.toptal.com/developers/gitignore/api/python
 # Edit at https://www.toptal.com/developers/gitignore?templates=python
