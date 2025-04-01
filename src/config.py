@@ -25,7 +25,7 @@ RND_OUTPUT_DIM = 512        # Dimension de l'embedding RND
 RND_LR = 5e-5             # Taux d'apprentissage pour le prédicteur RND
 INTRINSIC_REWARD_SCALE = 0.5 # Facteur beta pour pondérer la récompense intrinsèque (à tuner!)
 RND_OBS_CLIP = 5.0          # Clipping pour les observations normalisées RND
-RND_REWARD_CLIP = 2.0       # Clipping pour les récompenses intrinsèques normalisées
+RND_REWARD_CLIP = 1.0       # Clipping pour les récompenses intrinsèques normalisées
 
 # Configuration entraînement
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -37,7 +37,7 @@ RND_SAVE_PATH = "rnd_montezuma_model.pth"
 OPTIM_SAVE_PATH = "optimizers_montezuma.pth"
 NORM_SAVE_PATH = "normalizers_montezuma.pkl"
 
-SEED = 51                   # Graine pour la reproductibilité
+SEED = 52                   # Graine pour la reproductibilité
 
 # Normalisation des récompenses RND (coefficient gamma_r pour le RMS de la récompense)
 # Normalise r_i = (r_i_raw / (std_r_i + eps))
@@ -47,14 +47,14 @@ INTRINSIC_REWARD_NORM_GAMMA = GAMMA # Utilise le même gamma que DQN par défaut
 USE_CURRICULUM = True # Activer/Désactiver globalement
 CURRICULUM_CONFIG = {
     "enabled": USE_CURRICULUM,
-    "teleport_prob": 0.2,  # Probabilité de téléporter au début d'un épisode (A AJUSTER !)
+    "teleport_prob": 0.8,  # Probabilité de téléporter au début d'un épisode
     "locations": {
         # --- REMPLISSEZ AVEC VOS COORDONNÉES PRÉCISES ---
-        "near_key": (21, 192),      # Exemple: juste en dessous de la clé
-        "bottom_ladder1": (105, 148),   # Exemple: au pied de la première échelle
+        "bottom_ladder_middle": (77, 192),   # Exemple: en bas de l'échelle du milieu
+        "top_ladder_right": (133, 192),    # Exemple: en haut de l'échelle à droite
+        "bottom_ladder_right": (105, 148),   # Exemple: au pied de la première échelle
         "after_skull_jump": (39, 148),# Exemple: après le saut du crâne
-        #"middle_platform": (78, 192)   # Exemple: plateforme de départ
-        # Ajoutez/Modifiez selon vos besoins
+        "near_key": (21, 192),      # Exemple: juste en dessous de la clé
     }
     # Optionnel: Ajouter une logique de scheduling (décroissance de prob) ici si besoin
 }

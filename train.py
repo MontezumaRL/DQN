@@ -126,7 +126,7 @@ def run_training_steps(agent, env, start_episode, profile_num_frames, initial_in
                 break # Sortir de la boucle interne d'épisode
 
         # --- Fin de l'épisode ou atteinte de la limite de frames ---
-        # Calculer la récompense totale de l'épisode à partir des récompenses extrinsèques/intrinsèques
+        # Calculer la récompense totale de l'épisode à partir des récompenses extrinsèques/intrinsèques05
         # (Ici on log juste l'extrinsèque pour la simplicité du profiling)
         episode_extrinsic_rewards.append(current_episode_extrinsic_reward)
         episode_lengths.append(current_episode_length)
@@ -163,6 +163,13 @@ episode_intrinsic_rewards = deque(maxlen=100)
 episode_lengths = deque(maxlen=100)
 # NOUVEAU: Pour log par location de départ
 episode_start_locations = deque(maxlen=100)
+
+DEFAULT_INITIAL_TELEPORT_PROB = 0.8
+DEFAULT_FINAL_TELEPORT_PROB = 0.05
+# Par défaut, commencer la décroissance quand epsilon est stable
+DEFAULT_TELEPORT_DECAY_START_FRAME_FN = lambda config: config.EPSILON_DECAY_FRAMES
+# Par défaut, finir la décroissance à 50% des frames totales
+DEFAULT_TELEPORT_DECAY_END_FRAME_FN = lambda config: config.NUM_FRAMES // 2
 
 def main(resume_training=False, profile_mode=False):
     global episode_rewards, episode_extrinsic_rewards, episode_intrinsic_rewards, episode_lengths, episode_start_locations
@@ -429,16 +436,59 @@ def main(resume_training=False, profile_mode=False):
                       "reward/episode_intrinsic_reward": current_episode_intrinsic_reward,
                       "env/episode_length": current_episode_length,
                       "env/episode_count": episode + 1,
-                      "env/lives_remaining": last_info.get('lives', -1),
-                      "env/terminated_by_life_loss": last_info.get('terminated_by_life_loss', False),
-                      "env/terminated_by_steps": last_info.get('terminated_by_steps', False),
                       "curriculum/start_location_type": current_start_location,
                       "curriculum/teleported_start": last_info.get('teleported_start', False), # Utiliser les infos du dernier reset
                       # Log spécifique par type de départ (fin d'épisode)
                       f"reward_by_start/{current_start_location}_reward": current_episode_reward,
-                      f"length_by_start/{current_start_location}_length": current_episode_length
-                  }
+                      f"length_by_start/{current_start_location}_length": current_episode_length,# Log SPÉCIFIQUE PAR LOCATION DE DÉPART
+                      f"ep_extrinsic_reward_by_start/{current_start_location}": current_episode_extrinsic_reward,
+                      f"ep_intrinsic_reward_by_start/{current_start_location}": current_episode_intrinsic_reward
+                    }
                   wandb.log(log_data_ep, step=agent.total_steps)
+            
+            # ================================================================
+            # <<< DÉBUT DU CODE POUR LE SCHEDULING DU CURRICULUM >>>
+            # ================================================================
+             current_teleport_prob = None # Sera calculé si le curriculum et le schedule sont actifs
+             if cfg.USE_CURRICULUM:
+                 # Récupérer la config du schedule depuis cfg ou utiliser des défauts
+                 schedule_active = cfg.CURRICULUM_CONFIG.get("schedule_teleport_prob", True)
+                 initial_prob = cfg.CURRICULUM_CONFIG.get("teleport_prob", DEFAULT_INITIAL_TELEPORT_PROB)
+ 
+                 if not schedule_active:
+                     current_teleport_prob = initial_prob
+                 else:
+                     final_prob = cfg.CURRICULUM_CONFIG.get("teleport_prob_final", DEFAULT_FINAL_TELEPORT_PROB)
+ 
+                     # Utiliser les fonctions lambda pour obtenir les frames de début/fin à partir de la config
+                     # (Cela permet de les définir par rapport à d'autres paramètres comme EPSILON_DECAY_FRAMES)
+                     decay_start_fn = cfg.CURRICULUM_CONFIG.get("teleport_decay_start_frame_fn", DEFAULT_TELEPORT_DECAY_START_FRAME_FN)
+                     decay_end_fn = cfg.CURRICULUM_CONFIG.get("teleport_decay_end_frame_fn", DEFAULT_TELEPORT_DECAY_END_FRAME_FN)
+                     decay_start_frame = decay_start_fn(cfg)
+                     decay_end_frame = decay_end_fn(cfg)
+ 
+                     # Assurer la validité des frames
+                     decay_end_frame = max(decay_start_frame + 1, decay_end_frame)
+                     decay_duration = decay_end_frame - decay_start_frame
+ 
+                     if agent.total_steps >= decay_end_frame:
+                         current_teleport_prob = final_prob
+                     elif agent.total_steps > decay_start_frame:
+                         # Calcul linéaire
+                         progress = (agent.total_steps - decay_start_frame) / decay_duration
+                         current_teleport_prob = initial_prob - progress * (initial_prob - final_prob)
+                         current_teleport_prob = max(final_prob, current_teleport_prob) # Clamp au minimum
+                     else:
+                         # Avant le début de la décroissance
+                         current_teleport_prob = initial_prob
+ 
+                     # Logguer la probabilité dynamique à WandB
+                     if WANDB_AVAILABLE:
+                         wandb.log({"curriculum/current_teleport_prob": current_teleport_prob}, step=agent.total_steps)
+ 
+             # ================================================================
+             # <<< FIN DU CODE POUR LE SCHEDULING DU CURRICULUM >>>
+             # ================================================================
 
 
              # Préparer pour le prochain épisode
