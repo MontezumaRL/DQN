@@ -20,7 +20,6 @@ class MontezumaEnvironment(gym.Env):
     - Permet l'accès à la RAM ALE.
     - Hérite de gym.Env pour être compatible avec les wrappers Gymnasium.
     """
-    # Optionnel: Métadonnées pour Gymnasium
     metadata = {'render_modes': ['human', 'rgb_array'], 'render_fps': 30}
 
     def __init__(self, render_mode=None, seed=None, max_episode_steps=2000, step_limit_penalty=-1.0 , curriculum_config=None):
@@ -31,10 +30,8 @@ class MontezumaEnvironment(gym.Env):
             render_mode (str, optional): Mode de rendu ('human', 'rgb_array', None).
             seed (int, optional): Graine pour la reproductibilité.
         """
-        super().__init__() # MODIFICATION: Appel constructeur parent gym.Env
+        super().__init__()
 
-        # --- Définition des espaces (Requis par gym.Env) ---
-        # Espace d'observation: 4 frames 42x42 en float32 normalisé [0,1]
         self.observation_space = spaces.Box(
             low=0.0,
             high=1.0,
@@ -42,46 +39,27 @@ class MontezumaEnvironment(gym.Env):
             dtype=np.float32
         )
 
-        # L'espace d'action sera défini après la création de l'env interne
-        # self.action_space = spaces.Discrete(...) # Sera défini ci-dessous
-
-        # --- Création de l'environnement Gym interne ---
         self.render_mode = render_mode
-        # MODIFICATION: Renommer self.env en self.internal_env
         self.internal_env = gym.make("ALE/MontezumaRevenge-v5", render_mode=self.render_mode)
-
-        # --- Définir l'action_space basé sur l'env interne (Requis par gym.Env) ---
         self.action_space = self.internal_env.action_space
         self.n_actions = self.action_space.n # Garder pour l'agent
 
-        # Accès à l'interface ALE
         try:
-            # MODIFICATION: Utiliser self.internal_env
             self.ale = self.internal_env.unwrapped.ale
         except AttributeError:
              print("Warning: Could not get ALE interface via self.internal_env.unwrapped.ale. RAM access might fail.")
              self.ale = None
 
-        # --- Variables d'état internes ---
         self.frame_stack = deque(maxlen=4) # Stack de frames
         self.lives = 0                     # Vies restantes
         self._initial_seed = seed          # Stocker la seed initiale fournie
 
-        # --- AJOUT: Variables pour la limite de pas ---
         self.max_steps = max_episode_steps
         self.step_limit_penalty = step_limit_penalty
         self.episode_step_count = 0
         
-        # --- AJOUT: Initialisation Curriculum ---
         self.curriculum_config = curriculum_config if curriculum_config else {}
         self.teleport_locations = self.curriculum_config.get("locations", {})
-        # Exemple de structure pour self.teleport_locations (à remplir par vous):
-        # self.teleport_locations = {
-        #     "near_key": (78, 233),   # Coordonnées à ajuster !
-        #     "bottom_ladder1": (21, 192), # Coordonnées à ajuster !
-        #     "after_skull_jump": (..., ...), # Coordonnées à ajuster !
-        #     # Ajoutez autant de points que nécessaire
-        # }
 
 
     def reset(self, seed=None, options=None):

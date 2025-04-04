@@ -169,7 +169,7 @@ DEFAULT_FINAL_TELEPORT_PROB = 0.05
 # Par défaut, commencer la décroissance quand epsilon est stable
 DEFAULT_TELEPORT_DECAY_START_FRAME_FN = lambda config: config.EPSILON_DECAY_FRAMES
 # Par défaut, finir la décroissance à 50% des frames totales
-DEFAULT_TELEPORT_DECAY_END_FRAME_FN = lambda config: config.NUM_FRAMES // 2
+DEFAULT_TELEPORT_DECAY_END_FRAME_FN = lambda config: config.NUM_FRAMES // 3
 
 def main(resume_training=False, profile_mode=False):
     global episode_rewards, episode_extrinsic_rewards, episode_intrinsic_rewards, episode_lengths, episode_start_locations

@@ -20,7 +20,7 @@ EPSILON_FINAL = 0.01        # Valeur finale d'epsilon (pas 0 pour garder un peu 
 EPSILON_DECAY_FRAMES = 1000000 # Nombre de frames sur lesquelles epsilon décroît linéairement
 
 # Hyperparamètres RND
-USE_RND = True              # Activer ou non RND
+USE_RND = False              # Activer ou non RND
 RND_OUTPUT_DIM = 512        # Dimension de l'embedding RND
 RND_LR = 5e-5             # Taux d'apprentissage pour le prédicteur RND
 INTRINSIC_REWARD_SCALE = 0.5 # Facteur beta pour pondérer la récompense intrinsèque (à tuner!)
@@ -37,7 +37,7 @@ RND_SAVE_PATH = "rnd_montezuma_model.pth"
 OPTIM_SAVE_PATH = "optimizers_montezuma.pth"
 NORM_SAVE_PATH = "normalizers_montezuma.pkl"
 
-SEED = 52                   # Graine pour la reproductibilité
+SEED = 53                   # Graine pour la reproductibilité
 
 # Normalisation des récompenses RND (coefficient gamma_r pour le RMS de la récompense)
 # Normalise r_i = (r_i_raw / (std_r_i + eps))
