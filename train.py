@@ -164,8 +164,8 @@ episode_lengths = deque(maxlen=100)
 # NOUVEAU: Pour log par location de départ
 episode_start_locations = deque(maxlen=100)
 
-DEFAULT_INITIAL_TELEPORT_PROB = 0.8
-DEFAULT_FINAL_TELEPORT_PROB = 0.05
+DEFAULT_INITIAL_TELEPORT_PROB = 1
+DEFAULT_FINAL_TELEPORT_PROB = 1
 # Par défaut, commencer la décroissance quand epsilon est stable
 DEFAULT_TELEPORT_DECAY_START_FRAME_FN = lambda config: config.EPSILON_DECAY_FRAMES
 # Par défaut, finir la décroissance à 50% des frames totales

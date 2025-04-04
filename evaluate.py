@@ -26,7 +26,9 @@ def evaluate_agent(model_path, num_episodes=10, render_mode='human', seed=None):
         print(f"Using seed: {seed}")
 
     # --- Initialisation ---
-    env = MontezumaEnvironment(render_mode=render_mode, seed=seed)
+    curriculum_config=cfg.CURRICULUM_CONFIG if cfg.USE_CURRICULUM else None # Passer la config curriculum
+    
+    env = MontezumaEnvironment(render_mode=render_mode, seed=seed, curriculum_config=curriculum_config)
     n_actions = env.action_space.n
 
     # Charger uniquement le réseau de politique

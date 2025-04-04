@@ -20,7 +20,7 @@ EPSILON_FINAL = 0.01        # Valeur finale d'epsilon (pas 0 pour garder un peu 
 EPSILON_DECAY_FRAMES = 1000000 # Nombre de frames sur lesquelles epsilon décroît linéairement
 
 # Hyperparamètres RND
-USE_RND = True              # Activer ou non RND
+USE_RND = False              # Activer ou non RND
 RND_OUTPUT_DIM = 512        # Dimension de l'embedding RND
 RND_LR = 5e-5             # Taux d'apprentissage pour le prédicteur RND
 INTRINSIC_REWARD_SCALE = 0.5 # Facteur beta pour pondérer la récompense intrinsèque (à tuner!)
@@ -37,7 +37,7 @@ RND_SAVE_PATH = "rnd_montezuma_model.pth"
 OPTIM_SAVE_PATH = "optimizers_montezuma.pth"
 NORM_SAVE_PATH = "normalizers_montezuma.pkl"
 
-SEED = 52                   # Graine pour la reproductibilité
+SEED = 54                   # Graine pour la reproductibilité
 
 # Normalisation des récompenses RND (coefficient gamma_r pour le RMS de la récompense)
 # Normalise r_i = (r_i_raw / (std_r_i + eps))
@@ -47,14 +47,13 @@ INTRINSIC_REWARD_NORM_GAMMA = GAMMA # Utilise le même gamma que DQN par défaut
 USE_CURRICULUM = True # Activer/Désactiver globalement
 CURRICULUM_CONFIG = {
     "enabled": USE_CURRICULUM,
-    "teleport_prob": 0.8,  # Probabilité de téléporter au début d'un épisode
+    "teleport_prob": 1,  # Probabilité de téléporter au début d'un épisode
     "locations": {
         # --- REMPLISSEZ AVEC VOS COORDONNÉES PRÉCISES ---
-        "bottom_ladder_middle": (77, 192),   # Exemple: en bas de l'échelle du milieu
+        #"bottom_ladder_middle": (77, 192),   # Exemple: en bas de l'échelle du milieu
         "top_ladder_right": (133, 192),    # Exemple: en haut de l'échelle à droite
         "bottom_ladder_right": (105, 148),   # Exemple: au pied de la première échelle
-        "after_skull_jump": (39, 148),# Exemple: après le saut du crâne
-        "near_key": (21, 192),      # Exemple: juste en dessous de la clé
+        #"after_skull_jump": (39, 148),# Exemple: après le saut du crâne
+        #"near_key": (21, 192),      # Exemple: juste en dessous de la clé
     }
-    # Optionnel: Ajouter une logique de scheduling (décroissance de prob) ici si besoin
 }
