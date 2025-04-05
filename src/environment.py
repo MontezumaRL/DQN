@@ -21,7 +21,7 @@ class MontezumaEnvironment(gym.Env):
     """
     metadata = {'render_modes': ['human', 'rgb_array'], 'render_fps': 30}
 
-    def __init__(self, render_mode=None, seed=None, max_episode_steps=1000, step_limit_penalty=-1.0 , curriculum_config=None):
+    def __init__(self, render_mode=None, seed=None, max_episode_steps=200, step_limit_penalty=-1.0 , curriculum_config=None):
         """
         Initialise l'environnement.
 

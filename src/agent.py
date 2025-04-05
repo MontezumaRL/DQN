@@ -263,8 +263,8 @@ class DQNAgent:
                     # ou pour assurer la cohérence si on modifie la formule de decay
                     self.epsilon = max(cfg.EPSILON_FINAL, cfg.EPSILON_START - self.epsilon_decay * self.total_steps)
                     print(f"  Recalculated epsilon based on loaded steps: {self.epsilon:.4f}")
-                    self.epsilon = 0.3
-                    print(f"  Forcing epsilon: {self.epsilon:.4f}") 
+                    #self.epsilon = 0.3
+                    #print(f"  Forcing epsilon: {self.epsilon:.4f}") 
                     # Si epsilon est explicitement sauvegardé, on peut l'utiliser, mais recalculer est plus sûr
                     if 'epsilon' in training_state:
                          # Optionnel: utiliser l'epsilon sauvegardé

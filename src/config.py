@@ -37,7 +37,7 @@ RND_SAVE_PATH = "rnd_montezuma_model.pth"
 OPTIM_SAVE_PATH = "optimizers_montezuma.pth"
 NORM_SAVE_PATH = "normalizers_montezuma.pkl"
 
-SEED = 101                   # Graine pour la reproductibilité
+SEED = 102                   # Graine pour la reproductibilité
 
 # Normalisation des récompenses RND (coefficient gamma_r pour le RMS de la récompense)
 # Normalise r_i = (r_i_raw / (std_r_i + eps))
@@ -52,8 +52,8 @@ CURRICULUM_CONFIG = {
         # --- REMPLISSEZ AVEC VOS COORDONNÉES PRÉCISES ---
         #"bottom_ladder_middle": (77, 192),   # Exemple: en bas de l'échelle du milieu
         #"top_ladder_right": (133, 192),    # Exemple: en haut de l'échelle à droite
-        "bottom_ladder_right": (105, 148),   # Exemple: au pied de la première échelle
+        #"bottom_ladder_right": (105, 148),   # Exemple: au pied de la première échelle
         #"after_skull_jump": (39, 148),# Exemple: après le saut du crâne
-        #"near_key": (21, 192),      # Exemple: juste en dessous de la clé
+        "near_key": (15, 192),      # Exemple: juste en dessous de la clé
     }
 }

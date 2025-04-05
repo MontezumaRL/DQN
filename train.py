@@ -246,7 +246,7 @@ def main(resume_training=False, profile_mode=False):
     env = MontezumaEnvironment(
         render_mode=None,
         seed=cfg.SEED,
-        max_episode_steps=getattr(cfg, 'MAX_EPISODE_STEPS', 2000), # Utilise getattr pour valeur par défaut
+        max_episode_steps=getattr(cfg, 'MAX_EPISODE_STEPS', 200), # Utilise getattr pour valeur par défaut
         step_limit_penalty=getattr(cfg, 'STEP_LIMIT_PENALTY', -1.0),
         curriculum_config=cfg.CURRICULUM_CONFIG if cfg.USE_CURRICULUM else None # Passer la config curriculum
     )
