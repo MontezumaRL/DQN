@@ -110,7 +110,7 @@ class DQNAgent:
 
 
         # (Optionnel: stocker pour le log dans train.py si besoin)
-        # self.last_intrinsic_reward_calculated = clipped_intrinsic_reward
+        self.last_clipped_intrinsic_reward = clipped_intrinsic_reward
 
         return clipped_intrinsic_reward
 

@@ -259,8 +259,8 @@ def main(resume_training=False, profile_mode=False):
     if resume_training:
         try:
             agent.load_models() # Cette méthode devrait charger steps, optim, normalizers
-            agent.epsilon = 0.3
-            agent.total_steps = 0
+            #agent.epsilon = 0.3
+            #agent.total_steps = 0
             print(f"Resuming training from step {agent.total_steps}")
             # Idéalement, sauvegarder/charger le numéro d'épisode aussi
             # start_episode = loaded_episode_number # À implémenter
@@ -344,22 +344,27 @@ def main(resume_training=False, profile_mode=False):
 
                  # --- Récupération de l'intrinsèque pour log (Approximation) ---
                  # Il est préférable que l'agent retourne cette info directement si possible
-                 intrinsic_reward_for_log = 0.0
-                 if cfg.USE_RND and len(agent.memory.buffer) > 0:
-                    last_transition = agent.memory.buffer[-1]
-                    total_reward_stored = last_transition[2]
-                    extrinsic_reward_of_step = extrinsic_reward
-                    if abs(cfg.INTRINSIC_REWARD_SCALE) > 1e-6:
-                            intrinsic_reward_for_log = (total_reward_stored - extrinsic_reward_of_step) / cfg.INTRINSIC_REWARD_SCALE
+                 intrinsic_reward_this_step = agent.last_clipped_intrinsic_reward if cfg.USE_RND else 0.0
+                 
+                 
+                # current_episode_intrinsic_reward += intrinsic_reward_for_log
+                ## Le calcul de current_episode_reward doit aussi utiliser cette valeur correcte
+                # current_episode_reward += extrinsic_reward + cfg.INTRINSIC_REWARD_SCALE * intrinsic_reward_for_log
+                # if cfg.USE_RND and len(agent.memory.buffer) > 0:
+                #    last_transition = agent.memory.buffer[-1]
+                #    total_reward_stored = last_transition[2]
+                #    extrinsic_reward_of_step = extrinsic_reward
+                #    if abs(cfg.INTRINSIC_REWARD_SCALE) > 1e-6:
+                #            intrinsic_reward_for_log = (total_reward_stored - extrinsic_reward_of_step) / cfg.INTRINSIC_REWARD_SCALE
 
 
-                 state = next_state
                  # Accumuler les récompenses pour le log de l'épisode
                  current_episode_extrinsic_reward += extrinsic_reward
-                 current_episode_intrinsic_reward += intrinsic_reward_for_log
+                 current_episode_intrinsic_reward += intrinsic_reward_this_step
                  # La récompense totale accumulée devrait correspondre à la somme des récompenses stockées dans le buffer
-                 current_episode_reward += extrinsic_reward + cfg.INTRINSIC_REWARD_SCALE * intrinsic_reward_for_log
+                 current_episode_reward += extrinsic_reward + cfg.INTRINSIC_REWARD_SCALE * intrinsic_reward_this_step
 
+                 state = next_state
 
                  # --- Entraînement des réseaux ---
                  dqn_loss, rnd_loss = agent.update_networks()
