@@ -193,6 +193,9 @@ class MontezumaEnvironment(gym.Env):
         if self.episode_step_count >= self.max_steps and not terminated:
             extrinsic_reward += self.step_limit_penalty # Ajouter la pénalité négative
             terminated = True # Forcer la terminaison car la limite de pas est atteinte
+        
+        if extrinsic_reward > 0:
+            terminated = True
 
         return current_stack_obs, extrinsic_reward, terminated, truncated, info
 

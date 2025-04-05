@@ -259,6 +259,8 @@ def main(resume_training=False, profile_mode=False):
     if resume_training:
         try:
             agent.load_models() # Cette méthode devrait charger steps, optim, normalizers
+            agent.epsilon = 0.3
+            agent.total_steps = 0
             print(f"Resuming training from step {agent.total_steps}")
             # Idéalement, sauvegarder/charger le numéro d'épisode aussi
             # start_episode = loaded_episode_number # À implémenter

@@ -76,6 +76,7 @@ def evaluate_agent(model_path, num_episodes=10, render_mode='human', seed=None):
 
             # Exécuter l'action dans l'environnement
             next_state, reward, terminated, truncated, info = env.step(action)
+            print("action:", action)
             done = terminated or truncated # Calculer done
             print(f"Action: {action}, Reward: {reward}")
             
