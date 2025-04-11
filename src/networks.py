@@ -41,7 +41,6 @@ class DQN_CNN(nn.Module):
             # Couche linéaire 2 (sortie): 512 neurones -> n_actions (Q-values)
             nn.Linear(512, n_actions)
         )
-        # Note: Une architecture Dueling DQN pourrait être une amélioration ici.
 
     def _get_conv_out(self, shape):
         """Calcule la taille de sortie des couches convolutives pour une forme d'entrée donnée."""

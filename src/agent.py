@@ -31,7 +31,7 @@ class DQNAgent:
         # --- RND (si activé) ---
         self.use_rnd = cfg.USE_RND
         if self.use_rnd:
-            print("--- Initializing RND ---") # DEBUG: Confirmer l'initialisation
+            print("--- Initializing RND ---") 
             self.obs_normalizer = RNDObservationNormalizer(cfg.INPUT_SHAPE, clip=cfg.RND_OBS_CLIP)
             self.intrinsic_reward_rms = RunningMeanStd()
             self.rnd_target_net = RNDNetwork(cfg.INPUT_SHAPE, cfg.RND_OUTPUT_DIM).to(self.device)
@@ -70,8 +70,6 @@ class DQNAgent:
         intrinsic_reward = 0.0
         if self.use_rnd:
             intrinsic_reward = self._compute_intrinsic_reward(next_state)
-            # <<< PRINT ICI (Optionnel) : Pour voir la récompense finale ajoutée >>>
-            # print(f"DEBUG RND STORE (Step {self.total_steps}): Final Intrinsic Reward = {intrinsic_reward:.8f}")
 
         total_reward = extrinsic_reward + cfg.INTRINSIC_REWARD_SCALE * intrinsic_reward
         self.memory.push(state, action, total_reward, next_state, done)
