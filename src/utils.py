@@ -31,7 +31,6 @@ def preprocess_frame(frame: np.ndarray) -> np.ndarray:
          return np.zeros((42, 42), dtype=np.float32)
 
     # Redimensionner en 42x42
-    # cv2.INTER_AREA est généralement bon pour réduire la taille (downsampling)
     frame_resized = cv2.resize(frame_gray, (42, 42), interpolation=cv2.INTER_AREA)
 
     # Normaliser les pixels entre 0 et 1 et convertir en float32

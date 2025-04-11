@@ -47,8 +47,6 @@ def evaluate_agent(model_path, num_episodes=10, render_mode='human', seed=None):
         env.close()
         return
 
-    # Mettre le réseau en mode évaluation (très important !)
-    # Désactive le dropout, met à jour les stats de batch norm différemment, etc.
     policy_net.eval()
 
     episode_rewards = []
@@ -57,7 +55,6 @@ def evaluate_agent(model_path, num_episodes=10, render_mode='human', seed=None):
     # --- Boucle d'évaluation ---
     for i_episode in range(num_episodes):
         print(f"\nStarting Episode {i_episode + 1}/{num_episodes}")
-        # Utiliser une seed différente pour chaque épisode si une seed de base est fournie
         current_seed = seed + i_episode if seed is not None else None
         state, info = env.reset(seed=current_seed)
         done = False
@@ -86,7 +83,7 @@ def evaluate_agent(model_path, num_episodes=10, render_mode='human', seed=None):
             episode_reward += reward # Utilise la récompense extrinsèque de l'env
             episode_length += 1
 
-            # Ralentir un peu si on rend pour pouvoir voir ce qu'il se passe
+            # Ralentir un peu si on render pour pouvoir voir ce qu'il se passe
             if render_mode == 'human':
                 time.sleep(0.02) # Pause de 20ms
 

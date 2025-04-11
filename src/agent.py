@@ -101,16 +101,8 @@ class DQNAgent:
         # L'update se fait HORS du with torch.no_grad() car rms utilise numpy
         self.intrinsic_reward_rms.update(np.array([intrinsic_reward_raw]))
         std_ri = self.intrinsic_reward_rms.std
-        mean_ri = self.intrinsic_reward_rms.mean
-
         normalized_intrinsic_reward = intrinsic_reward_raw / (std_ri + 1e-8)
-
-
         clipped_intrinsic_reward = np.clip(normalized_intrinsic_reward, -cfg.RND_REWARD_CLIP, cfg.RND_REWARD_CLIP)
-
-
-        # (Optionnel: stocker pour le log dans train.py si besoin)
-        # self.last_intrinsic_reward_calculated = clipped_intrinsic_reward
 
         return clipped_intrinsic_reward
 
@@ -129,9 +121,6 @@ class DQNAgent:
             normalized_next_states_np = self.obs_normalizer.normalize(next_states.cpu().numpy())
             normalized_next_states = torch.from_numpy(normalized_next_states_np).float().to(self.device)
 
-            # <<< PRINT (Optionnel) : Vérifier les stats des états normalisés du batch >>>
-            # print(f"DEBUG RND UPDATE (Step {self.total_steps}): Batch Normalized States - Min={normalized_next_states.min():.4f}, Max={normalized_next_states.max():.4f}, Mean={normalized_next_states.mean():.4f}")
-
             # Calcul des embeddings pour la loss RND
             with torch.no_grad(): # Target ne nécessite pas de gradients
                 target_embeddings = self.rnd_target_net(normalized_next_states)
@@ -144,16 +133,12 @@ class DQNAgent:
             # Mise à jour du réseau prédicteur RND
             self.optimizer_rnd.zero_grad()
             rnd_loss.backward()
-            # <<< PRINT (Optionnel) : Vérifier les gradients avant clipping/step >>>
-            # grad_norm_before_clip = torch.nn.utils.clip_grad_norm_(self.rnd_predictor_net.parameters(), max_norm=float('inf')) # Calculer sans clipper
-            # print(f"DEBUG RND UPDATE (Step {self.total_steps}): Predictor Grad Norm (Before Clip) = {grad_norm_before_clip:.6f}")
 
             torch.nn.utils.clip_grad_norm_(self.rnd_predictor_net.parameters(), max_norm=0.5)
             self.optimizer_rnd.step()
             rnd_loss_value = rnd_loss.item()
 
         # --- Mise à jour DQN (DDQN) ---
-        # (Le reste de la fonction DQN est inchangé)
         with torch.no_grad():
             best_actions_next = self.policy_net(next_states).argmax(dim=1, keepdim=True)
             q_values_next_target = self.target_net(next_states).gather(1, best_actions_next)
@@ -164,10 +149,6 @@ class DQNAgent:
 
         self.optimizer_dqn.zero_grad()
         dqn_loss.backward()
-        # <<< PRINT (Optionnel) : Vérifier si les gradients DQN affectent RND par erreur >>>
-        # rnd_pred_grad_sum_after_dqn = sum(p.grad.abs().sum().item() for p in self.rnd_predictor_net.parameters() if p.grad is not None)
-        # print(f"DEBUG RND UPDATE (Step {self.total_steps}): RND Predictor Grad Sum After DQN backward = {rnd_pred_grad_sum_after_dqn}") # Devrait être 0 si zero_grad a bien marché
-
         torch.nn.utils.clip_grad_norm_(self.policy_net.parameters(), max_norm=1.0)
         self.optimizer_dqn.step()
 
@@ -177,11 +158,6 @@ class DQNAgent:
 
         return dqn_loss.item(), rnd_loss_value
 
-
-
-    # ===================================================================
-    # MODIFICATIONS DANS save_models et load_models CI-DESSOUS
-    # ===================================================================
 
     def save_models(self):
         """Sauvegarde les poids des modèles, l'état des optimiseurs et l'état de l'entraînement."""
@@ -267,9 +243,6 @@ class DQNAgent:
                     print(f"  Forcing epsilon: {self.epsilon:.4f}") 
                     # Si epsilon est explicitement sauvegardé, on peut l'utiliser, mais recalculer est plus sûr
                     if 'epsilon' in training_state:
-                         # Optionnel: utiliser l'epsilon sauvegardé
-                         # self.epsilon = training_state['epsilon']
-                         # print(f"  Using saved epsilon: {self.epsilon:.4f}")
                          pass # On préfère le recalculer par défaut
 
                 else:

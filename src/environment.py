@@ -202,11 +202,7 @@ class MontezumaEnvironment(gym.Env):
     def close(self):
         """Ferme l'environnement interne."""
         print("Closing internal Montezuma environment.")
-        # MODIFICATION: Utiliser self.internal_env
         self.internal_env.close()
-
-    # --- Méthodes spécifiques à cet environnement ---
-    # Ces méthodes sont conservées mais ne font pas partie de l'API gym.Env standard
 
     def get_state_tensor(self, device):
         """Convertit le stack de frames actuel en tenseur PyTorch."""
@@ -223,7 +219,6 @@ class MontezumaEnvironment(gym.Env):
         plt.tight_layout()
         if save_path:
             plt.savefig(save_path)
-            # print(f"Frame stack saved to {save_path}") # Optionnel: réduire verbosité
         if show:
             plt.show(block=False)
             plt.pause(delay)
@@ -256,19 +251,12 @@ class MontezumaEnvironment(gym.Env):
         except Exception as e:
             print(f"Warning: Error writing RAM for position: {e}")
 
-    # --- Méthodes de positionnement spécifiques (inchangées) ---
-    def setup_position_human(self):
-        print("Attempting to reach specific position using pre-defined actions...")
-        # ... (ta séquence d'actions .step() sur self.internal_env) ...
-        pass
-
     def setup_position_tp(self):
         print("Attempting to teleport agent via RAM manipulation...")
         target_x, target_y = 21, 192
         self.set_agent_position(target_x, target_y)
         # Faire quelques pas NOOP pour que l'état se stabilise / soit observé
         for _ in range(4):
-             # MODIFICATION: Utiliser self.internal_env
             self.internal_env.step(0) # Action NOOP# --- Curriculum Learning Config ---
             USE_CURRICULUM = True # Activer/Désactiver globalement
             

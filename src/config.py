@@ -47,9 +47,8 @@ INTRINSIC_REWARD_NORM_GAMMA = GAMMA # Utilise le même gamma que DQN par défaut
 USE_CURRICULUM = True # Activer/Désactiver globalement
 CURRICULUM_CONFIG = {
     "enabled": USE_CURRICULUM,
-    "teleport_prob": 1,  # Probabilité de téléporter au début d'un épisode
+    "teleport_prob": 0,
     "locations": {
-        # --- REMPLISSEZ AVEC VOS COORDONNÉES PRÉCISES ---
         #"bottom_ladder_middle": (77, 192),   # Exemple: en bas de l'échelle du milieu
         #"top_ladder_right": (133, 192),    # Exemple: en haut de l'échelle à droite
         #"bottom_ladder_right": (105, 148),   # Exemple: au pied de la première échelle

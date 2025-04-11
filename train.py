@@ -3,8 +3,7 @@ import numpy as np
 import time
 from collections import deque
 import random
-import argparse # Importer argparse ici
-#from gymnasium.wrappers import TimeLimit
+import argparse 
 
 # --- Ajouts pour le Profiling ---
 import cProfile
@@ -12,10 +11,10 @@ import pstats
 import io # Pour capturer la sortie de pstats dans une chaîne
 # ----------------------------------
 
-# Utilise wandb pour le logging (optionnel mais recommandé)
 try:
-    import wandb
-    WANDB_AVAILABLE = True
+    #import wandb
+    #WANDB_AVAILABLE = True
+    WANDB_AVAILABLE = False
 except ImportError:
     print("wandb not installed, logging to console only.")
     WANDB_AVAILABLE = False
@@ -24,136 +23,6 @@ except ImportError:
 from src.environment import MontezumaEnvironment
 from src.agent import DQNAgent
 from src import config as cfg # Importer la configuration
-
-# --- Fonction contenant la boucle à profiler ---
-# --- Fonction contenant la boucle à profiler ---
-def run_training_steps(agent, env, start_episode, profile_num_frames, initial_info):
-    """
-    Exécute un nombre défini de frames d'entraînement sous le contrôle du profiler.
-    Cette fonction contient la logique principale qui sera profilée.
-
-    Args:
-        agent (DQNAgent): L'agent RL.
-        env (MontezumaEnvironment): L'environnement.
-        start_episode (int): Le numéro de l'épisode de départ pour ce run.
-        profile_num_frames (int): Nombre de frames à exécuter.
-        initial_info (dict): Le dictionnaire info retourné par le premier env.reset().
-
-    Returns:
-        int: Le numéro de l'épisode atteint à la fin du profiling.
-        dict: Le dernier dictionnaire info retourné par env.reset().
-    """
-    episode = start_episode
-    start_time_profiling = time.time() # Timer pour la durée du profiling
-    initial_steps = agent.total_steps # Nombre de pas au début du profiling
-    target_steps = initial_steps + profile_num_frames
-
-    print(f"--- Starting Profiling Run ---")
-    print(f"Initial steps: {initial_steps}")
-    print(f"Target steps: {target_steps}")
-    print(f"Profiling for {profile_num_frames} frames...")
-
-    # Récupérer l'état initial du reset fait avant d'appeler cette fonction
-    state = initial_info['initial_state'] # Assurez-vous que l'état initial est passé via info
-    current_start_location = initial_info.get('start_location', 'unknown_profile_start')
-    info = initial_info # Garder le reste des infos
-
-    # Utiliser les deques globales pour le log pendant le profiling si besoin
-    global episode_rewards, episode_extrinsic_rewards, episode_intrinsic_rewards, episode_lengths, episode_start_locations
-
-    # --- Boucle d'entraînement principale (limitée par profile_num_frames) ---
-    while agent.total_steps < target_steps:
-
-        # Initialisation pour cet épisode
-        current_episode_reward = 0.0
-        current_episode_extrinsic_reward = 0.0
-        current_episode_intrinsic_reward = 0.0
-        current_episode_length = 0
-        done = False
-        episode_start_time = time.time() # Timer pour la durée de l'épisode
-
-        # --- Boucle interne (exécution des pas de cet épisode) ---
-        while not done and agent.total_steps < target_steps:
-
-            # --- Interaction Agent-Environnement ---
-            action = agent.choose_action(state) # Incrémente agent.total_steps
-
-            # Exécuter l'action dans l'environnement
-            next_state, extrinsic_reward, terminated, truncated, step_info = env.step(action)
-            done = terminated or truncated # Calculer done pour la condition de boucle
-
-            # --- Stockage de la transition dans le buffer ---
-            # !!! POINT CRUCIAL POUR LA MÉMOIRE !!!
-            # Vérifiez que les 'state' et 'next_state' (qui sont des np.ndarray ici)
-            # sont bien stockés de manière efficace dans votre ReplayBuffer.
-            # Si vous les convertissiez en Tensors PyTorch AVANT de les stocker,
-            # assurez-vous qu'ils sont .detach().cpu() pour éviter de garder
-            # l'historique de calcul ou de les laisser sur le GPU dans un buffer CPU.
-            # Avec des np.ndarray, le risque est moindre, mais vérifiez la taille du buffer.
-            agent.store_transition(state, action, extrinsic_reward, next_state, done)
-
-            # --- Calcul Récompense Intrinsèque (pour le log uniquement) ---
-            # Note: Ce calcul est approximatif car il se base sur la dernière transition ajoutée
-            intrinsic_reward_for_log = 0.0
-            if cfg.USE_RND and len(agent.memory.buffer) > 0:
-               # Attention: Accéder directement au buffer peut être lent ou non représentatif
-               # Il serait préférable que store_transition retourne la récompense RND calculée
-               # Pour le profilage, on peut simplifier ou ignorer ce log détaillé.
-               # Calcul simplifié (peut être imprécis) :
-               if abs(cfg.INTRINSIC_REWARD_SCALE) > 1e-6 and 'total_reward_stored' in agent.memory.buffer[-1]: # Si l'agent stocke la récompense totale
-                    total_reward_stored = agent.memory.buffer[-1]['total_reward_stored'] # Adaptez à la structure de votre buffer
-                    intrinsic_reward_for_log = (total_reward_stored - extrinsic_reward) / cfg.INTRINSIC_REWARD_SCALE
-
-            # --- Mise à jour de l'état et des compteurs d'épisode ---
-            state = next_state # L'état pour le prochain pas
-            # Note: Ne pas accumuler la récompense totale ici si elle est déjà dans le buffer
-            current_episode_extrinsic_reward += extrinsic_reward
-            # current_episode_intrinsic_reward += intrinsic_reward_for_log # Peut être imprécis
-            current_episode_length += 1
-
-            # --- Entraînement des réseaux ---
-            # C'est une partie majeure à profiler
-            dqn_loss, rnd_loss = agent.update_networks()
-
-            # --- Logging Périodique (minimum pendant profiling) ---
-            if agent.total_steps % 500 == 0: # Log très peu fréquent
-                 print(f"  Profiling Step: {agent.total_steps}/{target_steps} | Ep: {episode+1} | Ep Step: {current_episode_length} | Eps: {agent.epsilon:.3f}")
-                 # Optionnel: Ajouter des vérifications mémoire ici si nécessaire
-
-            # --- Vérifier si la limite de frames du profiling est atteinte ---
-            if agent.total_steps >= target_steps:
-                print(f"Reached profile frame limit ({target_steps}) during episode {episode + 1}.")
-                break # Sortir de la boucle interne d'épisode
-
-        # --- Fin de l'épisode ou atteinte de la limite de frames ---
-        # Calculer la récompense totale de l'épisode à partir des récompenses extrinsèques/intrinsèques05
-        # (Ici on log juste l'extrinsèque pour la simplicité du profiling)
-        episode_extrinsic_rewards.append(current_episode_extrinsic_reward)
-        episode_lengths.append(current_episode_length)
-        episode_start_locations.append(current_start_location) # Log d'où on a commencé
-
-        if done:
-            print(f"  Episode {episode + 1} finished naturally during profiling. Len: {current_episode_length}, ExtRew: {current_episode_extrinsic_reward:.2f}. TotFrames: {agent.total_steps}")
-        else: # Sorti car limite de frames atteinte
-             print(f"  Profiling stopped mid-episode {episode + 1} at step {current_episode_length}. ExtRew so far: {current_episode_extrinsic_reward:.2f}. TotFrames: {agent.total_steps}")
-
-
-        # Préparer pour le prochain épisode SEULEMENT SI on n'a pas atteint la limite de frames
-        if agent.total_steps < target_steps:
-             episode += 1
-             current_seed = cfg.SEED + episode
-             state, info = env.reset(seed=current_seed) # Reset pour le prochain épisode
-             current_start_location = info.get('start_location', 'unknown_profile_reset')
-             print(f"  Resetting for next episode {episode + 1} during profiling (Loc: {current_start_location})...")
-        else:
-             print(f"  Target steps ({target_steps}) reached. Finishing profiling run.")
-
-    profiling_duration = time.time() - start_time_profiling
-    print(f"--- Finished Profiling Run ({profiling_duration:.2f} seconds) ---")
-    print(f"Ending total steps: {agent.total_steps}")
-    # Retourner le numéro d'épisode final et les dernières infos pour potentiellement continuer
-    return episode, info
-
 
 # --- Variables globales pour les logs entre épisodes ---
 # (Déclarées globales pour être accessibles par run_training_steps)
@@ -236,13 +105,8 @@ def main(resume_training=False, profile_mode=False):
     torch.manual_seed(cfg.SEED)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(cfg.SEED)
-        # Options pour potentiellement améliorer la perf GPU mais réduire la reprod. exacte
-        # torch.backends.cudnn.benchmark = True
-        # torch.backends.cudnn.deterministic = False
-
 
     # --- Initialisation Environnement & Agent ---
-    # S'assurer que MAX_EPISODE_STEPS et STEP_LIMIT_PENALTY sont dans cfg
     env = MontezumaEnvironment(
         render_mode=None,
         seed=cfg.SEED,
@@ -447,10 +311,7 @@ def main(resume_training=False, profile_mode=False):
                       f"ep_intrinsic_reward_by_start/{current_start_location}": current_episode_intrinsic_reward
                     }
                   wandb.log(log_data_ep, step=agent.total_steps)
-            
-            # ================================================================
-            # <<< DÉBUT DU CODE POUR LE SCHEDULING DU CURRICULUM >>>
-            # ================================================================
+
              current_teleport_prob = None # Sera calculé si le curriculum et le schedule sont actifs
              if cfg.USE_CURRICULUM:
                  # Récupérer la config du schedule depuis cfg ou utiliser des défauts
@@ -488,11 +349,6 @@ def main(resume_training=False, profile_mode=False):
                      if WANDB_AVAILABLE:
                          wandb.log({"curriculum/current_teleport_prob": current_teleport_prob}, step=agent.total_steps)
  
-             # ================================================================
-             # <<< FIN DU CODE POUR LE SCHEDULING DU CURRICULUM >>>
-             # ================================================================
-
-
              # Préparer pour le prochain épisode
              episode += 1
              current_seed = cfg.SEED + episode
@@ -512,6 +368,133 @@ def main(resume_training=False, profile_mode=False):
             print("Closing WandB run.")
             wandb.finish()
 
+# --- Fonction contenant la boucle à profiler ---
+def run_training_steps(agent, env, start_episode, profile_num_frames, initial_info):
+    """
+    Exécute un nombre défini de frames d'entraînement sous le contrôle du profiler.
+    Cette fonction contient la logique principale qui sera profilée.
+
+    Args:
+        agent (DQNAgent): L'agent RL.
+        env (MontezumaEnvironment): L'environnement.
+        start_episode (int): Le numéro de l'épisode de départ pour ce run.
+        profile_num_frames (int): Nombre de frames à exécuter.
+        initial_info (dict): Le dictionnaire info retourné par le premier env.reset().
+
+    Returns:
+        int: Le numéro de l'épisode atteint à la fin du profiling.
+        dict: Le dernier dictionnaire info retourné par env.reset().
+    """
+    episode = start_episode
+    start_time_profiling = time.time() # Timer pour la durée du profiling
+    initial_steps = agent.total_steps # Nombre de pas au début du profiling
+    target_steps = initial_steps + profile_num_frames
+
+    print(f"--- Starting Profiling Run ---")
+    print(f"Initial steps: {initial_steps}")
+    print(f"Target steps: {target_steps}")
+    print(f"Profiling for {profile_num_frames} frames...")
+
+    # Récupérer l'état initial du reset fait avant d'appeler cette fonction
+    state = initial_info['initial_state'] # Assurez-vous que l'état initial est passé via info
+    current_start_location = initial_info.get('start_location', 'unknown_profile_start')
+    info = initial_info # Garder le reste des infos
+
+    # Utiliser les deques globales pour le log pendant le profiling si besoin
+    global episode_rewards, episode_extrinsic_rewards, episode_intrinsic_rewards, episode_lengths, episode_start_locations
+
+    # --- Boucle d'entraînement principale (limitée par profile_num_frames) ---
+    while agent.total_steps < target_steps:
+
+        # Initialisation pour cet épisode
+        current_episode_reward = 0.0
+        current_episode_extrinsic_reward = 0.0
+        current_episode_intrinsic_reward = 0.0
+        current_episode_length = 0
+        done = False
+        episode_start_time = time.time() # Timer pour la durée de l'épisode
+
+        # --- Boucle interne (exécution des pas de cet épisode) ---
+        while not done and agent.total_steps < target_steps:
+
+            # --- Interaction Agent-Environnement ---
+            action = agent.choose_action(state) # Incrémente agent.total_steps
+
+            # Exécuter l'action dans l'environnement
+            next_state, extrinsic_reward, terminated, truncated, step_info = env.step(action)
+            done = terminated or truncated # Calculer done pour la condition de boucle
+
+            # --- Stockage de la transition dans le buffer ---
+            # !!! POINT CRUCIAL POUR LA MÉMOIRE !!!
+            # Vérifiez que les 'state' et 'next_state' (qui sont des np.ndarray ici)
+            # sont bien stockés de manière efficace dans votre ReplayBuffer.
+            # Si vous les convertissiez en Tensors PyTorch AVANT de les stocker,
+            # assurez-vous qu'ils sont .detach().cpu() pour éviter de garder
+            # l'historique de calcul ou de les laisser sur le GPU dans un buffer CPU.
+            # Avec des np.ndarray, le risque est moindre, mais vérifiez la taille du buffer.
+            agent.store_transition(state, action, extrinsic_reward, next_state, done)
+
+            # --- Calcul Récompense Intrinsèque (pour le log uniquement) ---
+            # Note: Ce calcul est approximatif car il se base sur la dernière transition ajoutée
+            intrinsic_reward_for_log = 0.0
+            if cfg.USE_RND and len(agent.memory.buffer) > 0:
+               # Attention: Accéder directement au buffer peut être lent ou non représentatif
+               # Il serait préférable que store_transition retourne la récompense RND calculée
+               # Pour le profilage, on peut simplifier ou ignorer ce log détaillé.
+               # Calcul simplifié (peut être imprécis) :
+               if abs(cfg.INTRINSIC_REWARD_SCALE) > 1e-6 and 'total_reward_stored' in agent.memory.buffer[-1]: # Si l'agent stocke la récompense totale
+                    total_reward_stored = agent.memory.buffer[-1]['total_reward_stored'] # Adaptez à la structure de votre buffer
+                    intrinsic_reward_for_log = (total_reward_stored - extrinsic_reward) / cfg.INTRINSIC_REWARD_SCALE
+
+            # --- Mise à jour de l'état et des compteurs d'épisode ---
+            state = next_state # L'état pour le prochain pas
+            # Note: Ne pas accumuler la récompense totale ici si elle est déjà dans le buffer
+            current_episode_extrinsic_reward += extrinsic_reward
+            # current_episode_intrinsic_reward += intrinsic_reward_for_log # Peut être imprécis
+            current_episode_length += 1
+
+            # --- Entraînement des réseaux ---
+            # C'est une partie majeure à profiler
+            dqn_loss, rnd_loss = agent.update_networks()
+
+            # --- Logging Périodique (minimum pendant profiling) ---
+            if agent.total_steps % 500 == 0: # Log très peu fréquent
+                 print(f"  Profiling Step: {agent.total_steps}/{target_steps} | Ep: {episode+1} | Ep Step: {current_episode_length} | Eps: {agent.epsilon:.3f}")
+                 # Optionnel: Ajouter des vérifications mémoire ici si nécessaire
+
+            # --- Vérifier si la limite de frames du profiling est atteinte ---
+            if agent.total_steps >= target_steps:
+                print(f"Reached profile frame limit ({target_steps}) during episode {episode + 1}.")
+                break # Sortir de la boucle interne d'épisode
+
+        # --- Fin de l'épisode ou atteinte de la limite de frames ---
+        # Calculer la récompense totale de l'épisode à partir des récompenses extrinsèques/intrinsèques05
+        # (Ici on log juste l'extrinsèque pour la simplicité du profiling)
+        episode_extrinsic_rewards.append(current_episode_extrinsic_reward)
+        episode_lengths.append(current_episode_length)
+        episode_start_locations.append(current_start_location) # Log d'où on a commencé
+
+        if done:
+            print(f"  Episode {episode + 1} finished naturally during profiling. Len: {current_episode_length}, ExtRew: {current_episode_extrinsic_reward:.2f}. TotFrames: {agent.total_steps}")
+        else: # Sorti car limite de frames atteinte
+             print(f"  Profiling stopped mid-episode {episode + 1} at step {current_episode_length}. ExtRew so far: {current_episode_extrinsic_reward:.2f}. TotFrames: {agent.total_steps}")
+
+
+        # Préparer pour le prochain épisode SEULEMENT SI on n'a pas atteint la limite de frames
+        if agent.total_steps < target_steps:
+             episode += 1
+             current_seed = cfg.SEED + episode
+             state, info = env.reset(seed=current_seed) # Reset pour le prochain épisode
+             current_start_location = info.get('start_location', 'unknown_profile_reset')
+             print(f"  Resetting for next episode {episode + 1} during profiling (Loc: {current_start_location})...")
+        else:
+             print(f"  Target steps ({target_steps}) reached. Finishing profiling run.")
+
+    profiling_duration = time.time() - start_time_profiling
+    print(f"--- Finished Profiling Run ({profiling_duration:.2f} seconds) ---")
+    print(f"Ending total steps: {agent.total_steps}")
+    # Retourner le numéro d'épisode final et les dernières infos pour potentiellement continuer
+    return episode, info
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train a DDQN+RND agent on Montezuma's Revenge.")
